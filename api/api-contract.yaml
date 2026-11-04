@@ -1,0 +1,944 @@
+# API Contract: Regulated LLM Eval Framework
+# Contract type: CLI + Library API + Data Artifacts
+# Version: 1.0.0
+# OpenSpec step: api-contract (после adr, до test-specs)
+
+contract:
+  name: regulated-llm-eval
+  version: "1.0.0"
+  contract_type: "cli_library_artifacts"
+  description: >
+    Три уровня контракта:
+    (1) CLI-команды — для пользователей и CI;
+    (2) Library API — для программного использования;
+    (3) Data Artifacts (JSON Schema) — для golden set, judge result,
+        run manifest, annotation. Обеспечивает совместимость между прогонами
+        и воспроизводимость (NFR-005).
+  links:
+    - spec: specs/eval-pipeline/spec.md
+    - design: design/design.md
+    - threat_model: threat-model/threat-model.md
+    - adr:
+        - adr/ADR-001-pii-redaction-stack.md
+        - adr/ADR-002-provider-allowlist.md
+        - adr/ADR-003-judge-output-validation.md
+        - adr/ADR-004-otel-instrumentation.md
+        - adr/ADR-005-annotation-hash-chain.md
+
+# ============================================================
+# 1. Common conventions
+# ============================================================
+conventions:
+  exit_codes:
+    "0": success
+    "1": generic_error
+    "2": validation_error          # Pydantic, schema
+    "3": dataset_version_not_found # FR-002
+    "4": foreign_provider_not_allowed # NFR-SEC-001, ADR-002
+    "5": missing_credentials       # FR-013, NFR-SEC-004
+    "6": annotation_tampered       # NFR-SEC-005, ADR-005
+    "7": judge_calibration_failed  # FR-005
+    "8": rate_limit_exhausted      # FR-003, NFR-008
+
+  streams:
+    stdout: "machine-readable (JSON при --json, human-readable иначе)"
+    stderr: "диагностика, предупреждения (foreign provider, env fallback), ошибки"
+    stdin: "не используется (только файлы/env)"
+
+  correlation:
+    trace_id: "W3C trace-id, генерируется в root span eval.run; попадает в манифест, логи, отчёты"
+    x_request_id: "= run.id (uuid4); заголовок X-Request-ID для library API-совместимости"
+    traceparent: "W3C Trace Context; инжектится в HTTP-вызовы LLM-провайдеров автоматически (ADR-004)"
+
+  common_flags:
+    --config:
+      type: path
+      required: false
+      description: "Путь к YAML-конфигу (приоритет: CLI > env > config > defaults)"
+    --json:
+      type: bool
+      default: false
+      description: "Вывод в machine-readable JSON (для CI/парсинга)"
+    --log-level:
+      type: enum
+      values: [debug, info, warning, error]
+      default: info
+    --traceparent:
+      type: string
+      required: false
+      description: "W3C traceparent; если не задан — генерируется новый root span"
+    --x-request-id:
+      type: string
+      required: false
+      description: "Внешний run.id; если не задан — генерируется uuid4"
+
+# ============================================================
+# 2. CLI Contract
+# ============================================================
+cli:
+  entrypoint: "regulated-eval"
+  framework: "typer (Python 3.11+)"
+  global_options: *common_flags_anchor  # якорь для DRY (см. ниже)
+
+  commands:
+
+    # -------- dataset --------
+    dataset_load:
+      command: "regulated-eval dataset load"
+      summary: "Загрузка golden set с валидацией (FR-001)"
+      args:
+        --path:
+          type: path
+          required: true
+          description: "Путь к JSONL/JSON-файлу"
+        --version:
+          type: semver
+          required: false
+          description: "Явная версия (иначе — из манифеста или 0.1.0)"
+        --strict:
+          type: bool
+          default: true
+          description: "Pydantic strict mode"
+      stdout:
+        json_schema_ref: "#/artifacts/golden_set_summary"
+      exit_codes: [0, 2, 3]
+      examples:
+        - "regulated-eval dataset load --path datasets/tax_qa_v1.jsonl --version 1.2.0"
+      maps_to:
+        fr: [FR-001, FR-002]
+        nfr: [NFR-001, NFR-004]
+        tm: [TM-05]
+        adr: [ADR-001]
+
+    dataset_list:
+      command: "regulated-eval dataset list"
+      summary: "Список загруженных версий golden set"
+      args: {}
+      stdout:
+        json_schema_ref: "#/artifacts/dataset_list"
+      exit_codes: [0]
+
+    # -------- run --------
+    run:
+      command: "regulated-eval run"
+      summary: "Прогон golden set через модель + judge (FR-003, FR-004, FR-006)"
+      args:
+        --dataset:
+          type: "string (name@version)"
+          required: true
+          description: "Например, tax_qa_v1@1.2.0"
+        --model:
+          type: enum
+          values: [yandexgpt, gigachat, openai_compat]
+          required: true
+        --judge-model:
+          type: enum
+          values: [yandexgpt, gigachat, openai_compat]
+          required: false
+          default: "= --model"
+        --parallelism:
+          type: int
+          default: 8
+          range: [1, 32]
+        --seed:
+          type: int
+          default: 42
+        --allow-foreign-provider:
+          type: bool
+          default: false
+          description: "Требуется для openai_compat (ADR-002, NFR-SEC-001)"
+        --i-understand-152fz:
+          type: bool
+          default: false
+          description: "Обязателен вместе с --allow-foreign-provider (ADR-002)"
+        --report:
+          type: enum
+          values: [md, html, both]
+          default: md
+      stdout:
+        json_schema_ref: "#/artifacts/run_result"
+      stderr:
+        contains: "предупреждение при env fallback foreign provider (ADR-002)"
+      exit_codes: [0, 2, 3, 4, 5, 8]
+      examples:
+        - "regulated-eval run --dataset tax_qa_v1@1.2.0 --model yandexgpt --parallelism 8"
+        - "regulated-eval run --dataset tax_qa_v1@1.2.0 --model openai_compat --allow-foreign-provider --i-understand-152fz"
+      maps_to:
+        fr: [FR-003, FR-004, FR-006, FR-009, FR-010, FR-011, FR-012, FR-013, FR-015]
+        nfr: [NFR-001, NFR-002, NFR-005, NFR-008]
+        nfr_sec: [NFR-SEC-001, NFR-SEC-002, NFR-SEC-003, NFR-SEC-004]
+        tm: [TM-01, TM-02, TM-03, TM-04, TM-06, TM-07, TM-08, TM-13, TM-14]
+        adr: [ADR-001, ADR-002, ADR-003, ADR-004]
+
+    # -------- calibrate --------
+    calibrate:
+      command: "regulated-eval calibrate"
+      summary: "Калибровка judge против экспертных аннотаций (FR-005)"
+      args:
+        --dataset:
+          type: string
+          required: true
+        --judge-model:
+          type: enum
+          values: [yandexgpt, gigachat, openai_compat]
+          required: true
+        --threshold:
+          type: float
+          default: 0.6
+          range: [0.0, 1.0]
+          description: "Порог Cohen's kappa"
+        --ci-level:
+          type: float
+          default: 0.95
+      stdout:
+        json_schema_ref: "#/artifacts/calibration_result"
+      exit_codes: [0, 2, 3, 7]
+      examples:
+        - "regulated-eval calibrate --dataset calibration_v1 --judge-model yandexgpt --threshold 0.6"
+      maps_to:
+        fr: [FR-005]
+        nfr: [NFR-005]
+        tm: [TM-13]
+        adr: [ADR-003]
+
+    # -------- report --------
+    report:
+      command: "regulated-eval report"
+      summary: "Генерация Markdown/HTML-отчёта (FR-009)"
+      args:
+        --run:
+          type: string
+          required: true
+          description: "run_id"
+        --format:
+          type: enum
+          values: [md, html, both]
+          default: md
+        --compare:
+          type: string
+          required: false
+          description: "run_id предыдущего прогона для delta-таблицы"
+        --output-dir:
+          type: path
+          default: "reports/"
+      stdout:
+        json_schema_ref: "#/artifacts/report_result"
+      exit_codes: [0, 2]
+      examples:
+        - "regulated-eval report --run 3f2a1b4c --format md"
+        - "regulated-eval report --run 3f2a1b4c --compare 9e8d7c6b --format both"
+      maps_to:
+        fr: [FR-009]
+        nfr: [NFR-007]
+
+    # -------- ab --------
+    ab:
+      command: "regulated-eval ab"
+      summary: "A/B-сравнение промптов или моделей (FR-008)"
+      args:
+        --prompt-a:
+          type: path
+          required: true
+        --prompt-b:
+          type: path
+          required: true
+        --dataset:
+          type: string
+          required: true
+        --model:
+          type: enum
+          values: [yandexgpt, gigachat, openai_compat]
+          required: true
+        --bootstrap-iterations:
+          type: int
+          default: 1000
+        --alpha:
+          type: float
+          default: 0.05
+      stdout:
+        json_schema_ref: "#/artifacts/ab_result"
+      exit_codes: [0, 2, 3, 4]
+      examples:
+        - "regulated-eval ab --prompt-a prompts/v1.txt --prompt-b prompts/v2.txt --dataset tax_qa_v1@1.2.0 --model yandexgpt"
+      maps_to:
+        fr: [FR-008]
+        nfr: [NFR-005]
+        adr: [ADR-002]
+
+    # -------- conflicts --------
+    conflicts_resolve:
+      command: "regulated-eval conflicts resolve"
+      summary: "Разрешение конфликтов judge vs эксперт (FR-007)"
+      args:
+        --run:
+          type: string
+          required: true
+        --strategy:
+          type: enum
+          values: [accept_human, accept_judge, escalate, interactive]
+          default: interactive
+        --annotator-id:
+          type: string
+          required: true
+          description: "Кто разрешает конфликт (audit-лог)"
+      stdout:
+        json_schema_ref: "#/artifacts/conflicts_result"
+      exit_codes: [0, 2, 6]
+      maps_to:
+        fr: [FR-007]
+        nfr_sec: [NFR-SEC-005]
+        tm: [TM-09, TM-10]
+        adr: [ADR-005]
+
+    # -------- replay --------
+    replay:
+      command: "regulated-eval run replay"
+      summary: "Воспроизведение прогона по манифесту (FR-012)"
+      args:
+        --run:
+          type: string
+          required: true
+        --tolerance:
+          type: float
+          default: 0.01
+          description: "Допуск расхождения метрик (± 1%, NFR-005)"
+      stdout:
+        json_schema_ref: "#/artifacts/replay_result"
+      exit_codes: [0, 2, 3]
+      maps_to:
+        fr: [FR-012]
+        nfr: [NFR-005]
+
+    # -------- annotations --------
+    annotations_verify:
+      command: "regulated-eval annotations verify"
+      summary: "Проверка целостности hash-цепочки аннотаций (NFR-SEC-005, ADR-005)"
+      args:
+        --path:
+          type: path
+          required: true
+        --fix-report:
+          type: bool
+          default: false
+          description: "Вывести отчёт о разрывах цепочки (не исправляет)"
+      stdout:
+        json_schema_ref: "#/artifacts/annotations_verify_result"
+      exit_codes: [0, 6]
+      maps_to:
+        nfr_sec: [NFR-SEC-005]
+        tm: [TM-09, TM-10]
+        adr: [ADR-005]
+
+    # -------- serve (library API over HTTP — опционально для CI) --------
+    serve:
+      command: "regulated-eval serve"
+      summary: "HTTP-обёртка над library API (для CI/интеграций). Не входит в v1 core, но контракт зафиксирован."
+      args:
+        --host:
+          type: string
+          default: "127.0.0.1"
+        --port:
+          type: int
+          default: 8787
+      http_contract_ref: "#/library_api_http"
+      exit_codes: [0, 2]
+
+  global_exit_code_map: *exit_codes_anchor  # 0..8, см. conventions.exit_codes
+
+# ============================================================
+# 3. Library API Contract (Python)
+# ============================================================
+library_api:
+  module: "regulated_eval"
+  python: ">=3.11"
+
+  functions:
+
+    run_eval:
+      signature: |
+        def run_eval(
+            dataset: str,
+            model: Literal["yandexgpt", "gigachat", "openai_compat"],
+            judge_model: str | None = None,
+            parallelism: int = 8,
+            seed: int = 42,
+            allow_foreign_provider: bool = False,
+            acknowledge_152fz: bool = False,
+            run_id: str | None = None,
+        ) -> RunResult: ...
+      raises:
+        - DatasetVersionNotFound
+        - ForeignProviderNotAllowed
+        - MissingCredentials
+        - RateLimitExhausted
+        - ValidationError
+      maps_to:
+        fr: [FR-003, FR-004, FR-006, FR-009, FR-012]
+        nfr_sec: [NFR-SEC-001, NFR-SEC-002, NFR-SEC-003, NFR-SEC-004]
+        adr: [ADR-001, ADR-002, ADR-003, ADR-004]
+
+    calibrate_judge:
+      signature: |
+        def calibrate_judge(
+            dataset: str,
+            judge_model: str,
+            threshold: float = 0.6,
+            ci_level: float = 0.95,
+        ) -> CalibrationResult: ...
+      raises: [DatasetVersionNotFound, CalibrationFailed]
+      maps_to:
+        fr: [FR-005]
+        tm: [TM-13]
+        adr: [ADR-003]
+
+    generate_report:
+      signature: |
+        def generate_report(
+            run_id: str,
+            format: Literal["md", "html", "both"] = "md",
+            compare_run_id: str | None = None,
+            output_dir: str = "reports/",
+        ) -> ReportResult: ...
+      raises: [RunNotFound]
+      maps_to:
+        fr: [FR-009]
+        nfr: [NFR-007]
+
+    ab_test:
+      signature: |
+        def ab_test(
+            prompt_a: str,
+            prompt_b: str,
+            dataset: str,
+            model: str,
+            bootstrap_iterations: int = 1000,
+            alpha: float = 0.05,
+        ) -> ABResult: ...
+      raises: [DatasetVersionNotFound, ForeignProviderNotAllowed]
+      maps_to:
+        fr: [FR-008]
+
+    resolve_conflicts:
+      signature: |
+        def resolve_conflicts(
+            run_id: str,
+            strategy: Literal["accept_human", "accept_judge", "escalate", "interactive"],
+            annotator_id: str,
+        ) -> ConflictsResult: ...
+      raises: [RunNotFound, AnnotationTampered]
+      maps_to:
+        fr: [FR-007]
+        nfr_sec: [NFR-SEC-005]
+        adr: [ADR-005]
+
+    replay_run:
+      signature: |
+        def replay_run(run_id: str, tolerance: float = 0.01) -> ReplayResult: ...
+      raises: [RunNotFound]
+      maps_to:
+        fr: [FR-012]
+        nfr: [NFR-005]
+
+    # --- supporting (для полноты контракта) ---
+    load_dataset:
+      signature: |
+        def load_dataset(path: str, version: str | None = None, strict: bool = True) -> GoldenSet: ...
+      raises: [ValidationError, DatasetVersionNotFound]
+      maps_to:
+        fr: [FR-001, FR-002]
+
+    verify_annotations:
+      signature: |
+        def verify_annotations(path: str) -> AnnotationVerifyResult: ...
+      raises: []
+      maps_to:
+        nfr_sec: [NFR-SEC-005]
+        adr: [ADR-005]
+
+# ============================================================
+# 4. Data Artifacts (JSON Schema)
+# ============================================================
+artifacts:
+
+  golden_set_summary:
+    type: object
+    required: [version, content_hash, total_records, by_category, by_difficulty, expert_validated_ratio]
+    properties:
+      version: {type: string, pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      content_hash: {type: string, pattern: "^sha256:[a-f0-9]{64}$"}
+      total_records: {type: integer, minimum: 1, maximum: 5000}
+      by_category:
+        type: object
+        additionalProperties: {type: integer, minimum: 0}
+      by_difficulty:
+        type: object
+        required: [easy, medium, hard]
+        properties:
+          easy: {type: integer}
+          medium: {type: integer}
+          hard: {type: integer}
+      expert_validated_ratio: {type: number, minimum: 0, maximum: 1}
+    maps_to:
+      fr: [FR-001, FR-002]
+      tm: [TM-05]
+
+  dataset_list:
+    type: object
+    required: [datasets]
+    properties:
+      datasets:
+        type: array
+        items:
+          type: object
+          required: [name, version, content_hash, loaded_at]
+          properties:
+            name: {type: string}
+            version: {type: string}
+            content_hash: {type: string}
+            loaded_at: {type: string, format: date-time}
+
+  run_result:
+    type: object
+    required: [run_id, trace_id, manifest, metrics, judge_status_distribution]
+    properties:
+      run_id: {type: string}
+      trace_id: {type: string}
+      manifest:
+        $ref: "#/artifacts/run_manifest"
+      metrics:
+        $ref: "#/artifacts/metrics_block"
+      judge_status_distribution:
+        type: object
+        required: [ok, parse_error, rate_limited]
+        properties:
+          ok: {type: integer}
+          parse_error: {type: integer}
+          rate_limited: {type: integer}
+      report_paths:
+        type: array
+        items: {type: string}
+    maps_to:
+      fr: [FR-004, FR-006, FR-009, FR-012, FR-015]
+      adr: [ADR-003]
+
+  metrics_block:
+    type: object
+    required: [hallucination_rate, citation_accuracy, refusal_correctness, factual_consistency, by_category]
+    properties:
+      hallucination_rate: {type: number, minimum: 0, maximum: 1}
+      citation_accuracy: {type: number, minimum: 0, maximum: 1}
+      refusal_correctness: {type: number, minimum: 0, maximum: 1}
+      factual_consistency: {type: number, minimum: 0, maximum: 1}
+      by_category:
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+            hallucination_rate: {type: number}
+            citation_accuracy: {type: number}
+      by_difficulty:
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+            hallucination_rate: {type: number}
+            citation_accuracy: {type: number}
+    maps_to:
+      fr: [FR-006]
+
+  run_manifest:
+    type: object
+    required: [run_id, timestamp, dataset_version, dataset_content_hash, model_provider, model_name, judge_model, judge_prompt_version, seed, package_version, trace_id, hash, prev_hash]
+    properties:
+      run_id: {type: string}
+      timestamp: {type: string, format: date-time}
+      dataset_version: {type: string}
+      dataset_content_hash: {type: string}
+      model_provider: {type: string}
+      model_name: {type: string}
+      judge_model: {type: string}
+      judge_prompt_version: {type: string}
+      seed: {type: integer}
+      package_version: {type: string}
+      tokens_input: {type: integer, minimum: 0}
+      tokens_output: {type: integer, minimum: 0}
+      estimated_cost_rub:
+        oneOf: [{type: number, minimum: 0}, {type: "null"}]
+      trace_id: {type: string}
+      hash: {type: string, pattern: "^[a-f0-9]{64}$"}
+      prev_hash: {type: string, pattern: "^[a-f0-9]{64}$"}
+      ack_source:
+        type: string
+        enum: [cli_flags, env, interactive, not_applicable]
+        description: "Только для foreign provider (ADR-002)"
+    maps_to:
+      fr: [FR-012, FR-015]
+      nfr_sec: [NFR-SEC-004]
+      tm: [TM-03, TM-10, TM-14]
+      adr: [ADR-002, ADR-005]
+
+  judge_result:
+    type: object
+    required: [record_id, score, hallucination, wrong_citation, incorrect_refusal, rationale, judge_model, judge_prompt_version, trace_id]
+    additionalProperties: false
+    properties:
+      record_id: {type: string}
+      score: {type: integer, enum: [1, 2, 3, 4, 5]}
+      hallucination: {type: boolean}
+      wrong_citation: {type: boolean}
+      incorrect_refusal: {type: boolean}
+      rationale: {type: string, maxLength: 2000}
+      judge_model: {type: string}
+      judge_prompt_version: {type: string}
+      judge_status:
+        type: string
+        enum: [ok, parse_error, rate_limited]
+        default: ok
+      trace_id: {type: string}
+    maps_to:
+      fr: [FR-004]
+      tm: [TM-04]
+      adr: [ADR-003]
+
+  annotation:
+    type: object
+    required: [record_id, score, hallucination, wrong_citation, incorrect_refusal, annotator_id, timestamp, hash, prev_hash]
+    additionalProperties: false
+    properties:
+      record_id: {type: string}
+      score: {type: integer, enum: [1, 2, 3, 4, 5]}
+      hallucination: {type: boolean}
+      wrong_citation: {type: boolean}
+      incorrect_refusal: {type: boolean}
+      annotator_id: {type: string, minLength: 1}
+      timestamp: {type: string, format: date-time}
+      hash: {type: string, pattern: "^[a-f0-9]{64}$"}
+      prev_hash: {type: string, pattern: "^[a-f0-9]{64}$"}
+      source: {type: string, enum: [human, judge_escalated], default: human}
+    maps_to:
+      fr: [FR-007]
+      nfr_sec: [NFR-SEC-005]
+      tm: [TM-09, TM-10]
+      adr: [ADR-005]
+
+  calibration_result:
+    type: object
+    required: [status, kappa, ci_low, ci_high, agreement, threshold, recommendations]
+    properties:
+      status: {type: string, enum: [PASS, FAIL]}
+      kappa: {type: number, minimum: -1, maximum: 1}
+      ci_low: {type: number}
+      ci_high: {type: number}
+      agreement: {type: number, minimum: 0, maximum: 1}
+      threshold: {type: number}
+      recommendations:
+        type: array
+        items: {type: string}
+    maps_to:
+      fr: [FR-005]
+      tm: [TM-13]
+
+  ab_result:
+    type: object
+    required: [prompt_a, prompt_b, dataset, model, delta, ci_low, ci_high, p_value, effect_size, significant, winner]
+    properties:
+      prompt_a: {type: string}
+      prompt_b: {type: string}
+      dataset: {type: string}
+      model: {type: string}
+      delta: {type: number}
+      ci_low: {type: number}
+      ci_high: {type: number}
+      p_value: {type: number, minimum: 0, maximum: 1}
+      effect_size: {type: number}
+      significant: {type: boolean}
+      winner:
+        oneOf: [{type: string, enum: [A, B]}, {type: "null"}]
+      recommendation: {type: string}
+    maps_to:
+      fr: [FR-008]
+
+  conflicts_result:
+    type: object
+    required: [run_id, total_conflicts, resolved, escalated]
+    properties:
+      run_id: {type: string}
+      total_conflicts: {type: integer}
+      resolved: {type: integer}
+      escalated: {type: integer}
+      resolutions:
+        type: array
+        items:
+          type: object
+          properties:
+            record_id: {type: string}
+            resolution: {type: string, enum: [accept_human, accept_judge, escalate]}
+            annotator_id: {type: string}
+            trace_id: {type: string}
+    maps_to:
+      fr: [FR-007]
+      nfr_sec: [NFR-SEC-005]
+
+  replay_result:
+    type: object
+    required: [run_id, reproducible, metric_deltas, tolerance]
+    properties:
+      run_id: {type: string}
+      reproducible: {type: boolean}
+      tolerance: {type: number}
+      metric_deltas:
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+            original: {type: number}
+            replay: {type: number}
+            delta: {type: number}
+            within_tolerance: {type: boolean}
+    maps_to:
+      fr: [FR-012]
+      nfr: [NFR-005]
+
+  annotations_verify_result:
+    type: object
+    required: [valid, total, broken_at]
+    properties:
+      valid: {type: boolean}
+      total: {type: integer}
+      broken_at:
+        oneOf: [{type: string}, {type: "null"}]
+    maps_to:
+      nfr_sec: [NFR-SEC-005]
+      tm: [TM-09, TM-10]
+      adr: [ADR-005]
+
+  report_result:
+    type: object
+    required: [run_id, paths, format]
+    properties:
+      run_id: {type: string}
+      format: {type: string, enum: [md, html, both]}
+      paths: {type: array, items: {type: string}}
+      compared_to: {type: string}
+    maps_to:
+      fr: [FR-009]
+
+# ============================================================
+# 5. Library API HTTP (optional serve) — для CI/интеграций
+# ============================================================
+library_api_http:
+  base_path: "/api/v1"
+  security:
+    - bearer: []
+  components:
+    securitySchemes:
+      bearer:
+        type: http
+        scheme: bearer
+        bearerFormat: "static token из env REGULATED_EVAL_API_TOKEN"
+    schemas:
+      ErrorResponse:
+        type: object
+        required: [error_code, message, trace_id]
+        properties:
+          error_code:
+            type: string
+            enum: [validation_error, dataset_version_not_found, foreign_provider_not_allowed, missing_credentials, annotation_tampered, judge_calibration_failed, rate_limit_exhausted, internal_error]
+          message: {type: string}
+          trace_id:
+            type: string
+            description: "W3C trace-id для корреляции с трейсом (обязателен)"
+          details:
+            type: object
+  paths:
+    /runs:
+      post:
+        summary: "run_eval over HTTP (обёртка)"
+        operationId: create_run
+        parameters:
+          - name: traceparent
+            in: header
+            required: false
+            schema: {type: string}
+          - name: X-Request-ID
+            in: header
+            required: false
+            schema: {type: string}
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dataset, model]
+                properties:
+                  dataset: {type: string}
+                  model: {type: string, enum: [yandexgpt, gigachat, openai_compat]}
+                  judge_model: {type: string}
+                  parallelism: {type: integer, default: 8}
+                  seed: {type: integer, default: 42}
+                  allow_foreign_provider: {type: boolean, default: false}
+                  acknowledge_152fz: {type: boolean, default: false}
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: "#/artifacts/run_result"
+          "400":
+            description: Validation Error
+            content:
+              application/json:
+                schema:
+                  $ref: "#/library_api_http/components/schemas/ErrorResponse"
+          "401":
+            description: Unauthorized
+          "403":
+            description: Foreign provider not allowed (NFR-SEC-001)
+          "422":
+            description: Validation Error (Pydantic)
+          "429":
+            description: Rate limit exhausted (NFR-008)
+          "500":
+            description: Internal Server Error
+    /runs/{run_id}:
+      get:
+        summary: "Получить run_result"
+        operationId: get_run
+        parameters:
+          - name: run_id
+            in: path
+            required: true
+            schema: {type: string}
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: "#/artifacts/run_result"
+          "404":
+            description: Not Found
+          "500":
+            description: Internal Server Error
+    /runs/{run_id}/replay:
+      post:
+        summary: "replay_run over HTTP"
+        operationId: replay_run_http
+        parameters:
+          - name: run_id
+            in: path
+            required: true
+            schema: {type: string}
+          - name: tolerance
+            in: query
+            required: false
+            schema: {type: number, default: 0.01}
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: "#/artifacts/replay_result"
+          "404":
+            description: Not Found
+    /calibrate:
+      post:
+        summary: "calibrate_judge over HTTP"
+        operationId: calibrate_http
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dataset, judge_model]
+                properties:
+                  dataset: {type: string}
+                  judge_model: {type: string}
+                  threshold: {type: number, default: 0.6}
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: "#/artifacts/calibration_result"
+          "400":
+            description: Validation Error
+          "403":
+            description: Foreign provider not allowed
+    /ab:
+      post:
+        summary: "ab_test over HTTP"
+        operationId: ab_http
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [prompt_a, prompt_b, dataset, model]
+                properties:
+                  prompt_a: {type: string}
+                  prompt_b: {type: string}
+                  dataset: {type: string}
+                  model: {type: string}
+                  bootstrap_iterations: {type: integer, default: 1000}
+                  alpha: {type: number, default: 0.05}
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: "#/artifacts/ab_result"
+          "400":
+            description: Validation Error
+
+# ============================================================
+# 6. Traceability (краткая; полная — в context.md)
+# ============================================================
+traceability:
+  - id: FR-001
+    api: ["cli.dataset_load", "library_api.load_dataset", "artifacts.golden_set_summary"]
+  - id: FR-002
+    api: ["cli.dataset_load", "cli.dataset_list", "library_api.load_dataset"]
+  - id: FR-003
+    api: ["cli.run", "library_api.run_eval"]
+  - id: FR-004
+    api: ["cli.run", "library_api.run_eval", "artifacts.judge_result"]
+  - id: FR-005
+    api: ["cli.calibrate", "library_api.calibrate_judge", "artifacts.calibration_result"]
+  - id: FR-006
+    api: ["cli.run", "artifacts.metrics_block"]
+  - id: FR-007
+    api: ["cli.conflicts_resolve", "library_api.resolve_conflicts", "artifacts.annotation"]
+  - id: FR-008
+    api: ["cli.ab", "library_api.ab_test", "artifacts.ab_result"]
+  - id: FR-009
+    api: ["cli.report", "library_api.generate_report", "artifacts.report_result"]
+  - id: FR-010
+    api: ["cli.run"]  # redaction внутри pipeline
+  - id: FR-011
+    api: ["cli.run"]  # injection filter внутри pipeline
+  - id: FR-012
+    api: ["cli.replay", "library_api.replay_run", "artifacts.run_manifest", "artifacts.replay_result"]
+  - id: FR-013
+    api: ["cli.run", "library_api.run_eval"]  # exit code 5
+  - id: FR-014
+    api: ["cli.*", "library_api.*"]
+  - id: FR-015
+    api: ["artifacts.run_manifest", "artifacts.run_result"]
+  - id: NFR-SEC-001
+    api: ["cli.run (--allow-foreign-provider, --i-understand-152fz)", "library_api.run_eval", "exit_code:4"]
+  - id: NFR-SEC-002
+    api: ["cli.run", "artifacts.run_manifest (без PII)"]
+  - id: NFR-SEC-003
+    api: ["cli.run"]
+  - id: NFR-SEC-004
+    api: ["artifacts.run_manifest", "exit_code:5"]
+  - id: NFR-SEC-005
+    api: ["cli.annotations_verify", "library_api.verify_annotations", "artifacts.annotation", "exit_code:6"]
