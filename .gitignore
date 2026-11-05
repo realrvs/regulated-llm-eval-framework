@@ -1,28 +1,67 @@
-﻿# Python
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-*.egg-info/
-dist/
-build/
-.venv/
-venv/
+*$py.class
 
-# Secrets
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Virtual environments
 .env
-.env.*
-*.key
-*.pem
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # IDE
-.vscode/
 .idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.coverage.*
+*.cover
+*.log
+
+# PyInstaller
+*.manifest
+*.spec
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Project
-reports/
-manifests/
-annotations/
-*.log
+# Regulatory data (contains PII)
+datasets/*.jsonl
+datasets/*.json
+
+# Secrets
+.env
+.env.*
+!/.env.example

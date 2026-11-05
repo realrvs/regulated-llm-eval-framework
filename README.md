@@ -234,17 +234,10 @@ mypy src/regulated_eval
 ## Roadmap
 
 - [x] OpenSpec pipeline (proposal → specs → design → threat-model → adr → api-contract → test-specs → tasks → apply)
-- [ ] Phase 0: Foundation (T-001..T-009)
-- [ ] Phase 1: Datasets (T-101..T-105)
-- [ ] Phase 2: Adapters (T-201..T-208)
-- [ ] Phase 3: Security (T-301..T-306)
-- [ ] Phase 4: Judges (T-401..T-407)
-- [ ] Phase 5: Metrics (T-501..T-505)
+- [x] MVP implementation (Foundation, Datasets, Adapters, Security, Judges, Metrics, Pipeline, Reports)
 - [ ] Phase 6: Human-in-the-loop (T-601..T-603)
 - [ ] Phase 7: A/B (T-701..T-703)
-- [ ] Phase 8: Reports (T-801..T-803)
 - [ ] Phase 9: Observability (T-901..T-907)
-- [ ] Phase 10: Pipeline (T-1001..T-1003)
 - [ ] Phase 11: Tests (T-1101..T-1114)
 - [ ] Phase 12: CI (T-1201..T-1205)
 - [ ] Phase 13: Docs (T-1301..T-1305)
@@ -272,3 +265,7 @@ mypy src/regulated_eval
 ## License
 
 MIT — см. [LICENSE](LICENSE).
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
