@@ -294,7 +294,7 @@ class AnnotationStore:
                 if annotation:
                     f.write(
                         json.dumps(
-                            annotation.model_dump(default=str),
+                            annotation.model_dump(mode="json"),
                             ensure_ascii=False,
                             default=str,
                         )

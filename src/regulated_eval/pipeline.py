@@ -128,7 +128,7 @@ class EvalOrchestrator:
         np.random.seed(seed)
 
         # Step 1: Load golden set
-        records = load_golden_set(dataset_path)
+        records = load_golden_set(dataset_path, strict=False)
         dataset_hash = compute_dataset_hash(records)
         logger.info("Loaded %d records from %s", len(records), dataset_path)
 
@@ -359,7 +359,7 @@ class EvalOrchestrator:
         Returns:
             Dict with run_id, manifest, metrics, judge_results.
         """
-        return asyncio.get_event_loop().run_until_complete(
+        return asyncio.run(
             self.run(
                 dataset_path=dataset_path,
                 dataset_version=dataset_version,
@@ -387,7 +387,7 @@ class EvalOrchestrator:
         Returns:
             CalibrationResult.
         """
-        return asyncio.get_event_loop().run_until_complete(
+        return asyncio.run(
             self.calibrate(
                 dataset_path=dataset_path,
                 annotations=annotations,

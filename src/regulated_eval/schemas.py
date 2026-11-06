@@ -123,7 +123,7 @@ class JudgeResult(BaseModel):
     judge_status: Literal["ok", "parse_error", "rate_limited"] = Field(
         default="ok", description="Status of the judge call."
     )
-    trace_id: str = Field(..., description="W3C trace-id for correlation.")
+    trace_id: str = Field(default="", description="W3C trace-id for correlation.")
 
 
 # ============================================================

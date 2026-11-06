@@ -15,7 +15,6 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
-from tenacity.asyncio import retry as async_retry
 from tenacity.wait import wait_base
 
 from regulated_eval.exceptions import RateLimitExhausted
@@ -53,7 +52,9 @@ def get_retry_decorator(
     Returns:
         Tenacity retry decorator.
     """
-    return async_retry(
+    from tenacity import retry as tenacity_retry  # noqa: PLC0415
+
+    return tenacity_retry(
         retry=retry_if_exception_type((RateLimitError, ConnectionError, TimeoutError)),
         wait=wait_exponential(
             multiplier=base_delay_ms / 1000.0,
@@ -65,8 +66,8 @@ def get_retry_decorator(
             "Retry %d/%d after %.1fs delay: %s",
             state.attempt_number,
             max_retries,
-            state.next_action.sleep,
-            state.outcome.exception(),
+            state.next_action.sleep if state.next_action else 0,
+            state.outcome.exception() if state.outcome else None,
         ),
         reraise=True,
     )
@@ -110,7 +111,7 @@ async def retry_with_backoff(
         ) from e
 
 
-async def check_rate_limit(response: Any) -> None:
+def check_rate_limit(response: Any) -> None:
     """Check if a response indicates rate limiting.
 
     Args:

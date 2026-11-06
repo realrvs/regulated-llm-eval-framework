@@ -135,7 +135,7 @@ class OpenAICompatibleAdapter(BaseAdapter):
                 json=payload,
                 headers=headers,
             )
-            await check_rate_limit(response)
+            check_rate_limit(response)
             return response
 
         try:

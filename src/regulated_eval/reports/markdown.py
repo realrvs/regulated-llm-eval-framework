@@ -83,7 +83,13 @@ def generate_markdown_report(
             ca = cat_metrics.get("citation_accuracy", "N/A")
             rc = cat_metrics.get("refusal_correctness", "N/A")
             fc = cat_metrics.get("factual_consistency", "N/A")
-            lines.append(f"| {cat} | {hr:.2% if isinstance(hr, float) else hr} | {ca:.2% if isinstance(ca, float) else ca} | {rc:.2% if isinstance(rc, float) else rc} | {fc:.2% if isinstance(fc, float) else fc} |")
+
+            def _fmt(v: float) -> str:
+                if isinstance(v, float):
+                    return f"{v:.2%}"
+                return str(v)
+
+            lines.append(f"| {cat} | {_fmt(hr)} | {_fmt(ca)} | {_fmt(rc)} | {_fmt(fc)} |")
         lines.append("")
 
     # Metrics by Difficulty
@@ -97,7 +103,13 @@ def generate_markdown_report(
             ca = diff_metrics.get("citation_accuracy", "N/A")
             rc = diff_metrics.get("refusal_correctness", "N/A")
             fc = diff_metrics.get("factual_consistency", "N/A")
-            lines.append(f"| {diff} | {hr:.2% if isinstance(hr, float) else hr} | {ca:.2% if isinstance(ca, float) else ca} | {rc:.2% if isinstance(rc, float) else rc} | {fc:.2% if isinstance(fc, float) else fc} |")
+
+            def _fmt(v: float) -> str:
+                if isinstance(v, float):
+                    return f"{v:.2%}"
+                return str(v)
+
+            lines.append(f"| {diff} | {_fmt(hr)} | {_fmt(ca)} | {_fmt(rc)} | {_fmt(fc)} |")
         lines.append("")
 
     # Calibration

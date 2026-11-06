@@ -1,4 +1,4 @@
-"""Test runner script."""
+"""Test runner script for all tests."""
 import sys
 import os
 
@@ -8,10 +8,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 import pytest
 
 if __name__ == "__main__":
-    sys.exit(pytest.main([
-        "-v",
-        "--tb=short",
-        "tests/unit/test_schemas.py",
-        "tests/unit/test_datasets.py",
-        "tests/security/test_pii.py",
-    ]))
+    args = sys.argv[1:]
+    if not args:
+        # Run all tests
+        args = [
+            "tests/unit/",
+            "tests/integration/",
+            "tests/security/",
+            "-v",
+            "--tb=short",
+        ]
+    sys.exit(pytest.main(args))

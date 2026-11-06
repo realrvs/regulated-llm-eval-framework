@@ -99,7 +99,7 @@ def dataset_load(
     version: str | None = typer.Option(
         None, "--version", "-V", help="Explicit version (else from manifest or 0.1.0)."
     ),
-    strict: bool = typer.Option(True, "--strict", help="Pydantic strict mode."),
+    strict: bool = typer.Option(False, "--strict", help="Pydantic strict mode."),
 ) -> None:
     """Load and validate a golden set (FR-001)."""
     from regulated_eval.datasets.loader import load_golden_set  # noqa: PLC0414
