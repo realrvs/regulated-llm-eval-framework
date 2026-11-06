@@ -1,0 +1,202 @@
+[
+  {
+    "id": "cal_001",
+    "question": "Какая ставка УСН при объекте «доходы»?",
+    "reference_answer": "6% (по федеральной ставке). Региональные законы могут снижать до 1%.",
+    "model_answer": "Ставка УСН при объекте «доходы» составляет 6% по федеральной ставке. Однако субъекты РФ имеют право снижать эту ставку до 1%.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_002",
+    "question": "Обязан ли ИП на УСН платить НДС?",
+    "reference_answer": "Нет, не являются плательщиками НДС, за исключением импорта и УСН с НДС.",
+    "model_answer": "Да, все ИП обязаны платить НДС.",
+    "expert_score": 1,
+    "expert_hallucination": true,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_003",
+    "question": "Каков предельный доход для УСН в 2024?",
+    "reference_answer": "280,4 млн рублей.",
+    "model_answer": "Предельный доход — 200 млн рублей.",
+    "expert_score": 2,
+    "expert_hallucination": true,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_004",
+    "question": "Ставка НДС при экспорте?",
+    "reference_answer": "0% при наличии подтверждающих документов.",
+    "model_answer": "Нулевая ставка НДС применяется при экспорте при условии предоставления подтверждающих документов: таможенной декларации, контракта и др.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_005",
+    "question": "Ставка НДС для экспортируемых товаров?",
+    "reference_answer": "10%.",
+    "model_answer": "Ставка НДС при экспорте — 10%.",
+    "expert_score": 1,
+    "expert_hallucination": true,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_006",
+    "question": "Фиксированные взносы ИП за себя в 2024?",
+    "reference_answer": "49 500 рублей + 1% от дохода свыше 300 000.",
+    "model_answer": "В 2024 году фиксированные взносы ИП за себя составляют 49 500 рублей. Additionally, 1% от дохода, превышающего 300 000 рублей.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_007",
+    "question": "Можно ли уменьшить УСН на взносы?",
+    "reference_answer": "Да, не более чем на 50%.",
+    "model_answer": "Нет, нельзя.",
+    "expert_score": 1,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_008",
+    "question": "НДФЛ с дохода свыше 5 млн?",
+    "reference_answer": "Прогрессивная шкала: 18%, 20%, 22%.",
+    "model_answer": "Прогрессивная шкала НДФЛ: от 18% до 22% в зависимости от уровня дохода.",
+    "expert_score": 4,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_009",
+    "question": "Документы для НДС 0%?",
+    "reference_answer": "ТД, контракт, транспортные документы, документы о зачёте выручки.",
+    "model_answer": "Необходимы: экспортная таможенная декларация, контракт, транспортные документы, документы о зачёте валютной выручки.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_010",
+    "question": "КУДиР обязательна для УСН?",
+    "reference_answer": "Да, в электронном виде с ЭЦП.",
+    "model_answer": "Да, ведение КУДиР обязательно в электронном виде с усиленной квалифицированной электронной подписью.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_011",
+    "question": "Срок подачи декларации по НДС?",
+    "reference_answer": "Не позднее 25-го числа месяца, следующего за кварталом.",
+    "model_answer": "Декларация подается до 20-го числа следующего месяца.",
+    "expert_score": 2,
+    "expert_hallucination": false,
+    "expert_wrong_citation": true,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_012",
+    "question": "Льготы по взносам для ИП МСП?",
+    "reference_answer": "6% до МРОТ, 15% сверх МРОТ.",
+    "model_answer": "Для ИП из МСП: 6% страховых взносов до размера МРОТ и 15% на сумму превышения МРОТ.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_013",
+    "question": "Вычет по НДС?",
+    "reference_answer": "Сумма НДС от поставщиков, уменьшающая начисленный НДС при наличии счетов-фактур.",
+    "model_answer": "Налоговый вычет — это право уменьшить начисленный НДС на сумму НДС, предъявленную поставщиками при наличии счетов-фактур и использовании в облагаемых операциях.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_014",
+    "question": "Авансовые платежи по УСН?",
+    "reference_answer": "Ежеквартально, не позднее 25-го числа следующего месяца.",
+    "model_answer": "Авансовые платежи уплачиваются ежеквартально не позднее 25-го числа месяца, следующего за кварталом.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_015",
+    "question": "Имущество ИП на УСН — налог?",
+    "reference_answer": "Если для бизнеса — включается в УСН базу. Если личное — нет.",
+    "model_answer": "Доходы от продажи личного имущества не облагаются УСН. Если имущество использовалось в бизнесе — доход включается.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_016",
+    "question": "Вычет при покупке жилья?",
+    "reference_answer": "Необходимы: ДКП, акт, квитанции, 2-НДФЛ, 3-НДФЛ.",
+    "model_answer": "Для имущественного вычета: договор купли-продажи, акт приёма-передачи, квитанции об оплате, справка 2-НДФЛ, декларация 3-НДФЛ.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_017",
+    "question": "Взносы за сотрудников ИП на УСН?",
+    "reference_answer": "Обязаны, ~30% от ФОТ.",
+    "model_answer": "Да, ИП обязаны уплачивать взносы за сотрудников около 30% от фонда оплаты труда.",
+    "expert_score": 4,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_018",
+    "question": "Превышение 280,4 млн на УСН?",
+    "reference_answer": "Утрата права на УСН с начала квартала, переход на общую систему.",
+    "model_answer": "При превышении 280,4 млн ИП теряет право на УСН с начала квартала и переходит на общую систему.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_019",
+    "question": "Срок хранения КУДиР?",
+    "reference_answer": "Не менее 4 лет.",
+    "model_answer": "КУДиР хранится не менее 4 лет.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  },
+  {
+    "id": "cal_020",
+    "question": "Какая разница между УСН 6% и УСН 15%?",
+    "reference_answer": "УСН 6% — налог с доходов, УСН 15% — налог с доходов минус расходы. Выбор зависит от доли расходов.",
+    "model_answer": "Разница в объекте налогообложения: УСН «доходы» (6%) и УСН «доходы минус расходы» (15%). Выбор зависит от соотношения доходов и расходов.",
+    "expert_score": 5,
+    "expert_hallucination": false,
+    "expert_wrong_citation": false,
+    "expert_incorrect_refusal": false
+  }
+]

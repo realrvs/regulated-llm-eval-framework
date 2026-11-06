@@ -96,6 +96,7 @@ class CalibrationEngine:
             kappa=float(kappa),
             ci_low=float(ci_low),
             ci_high=float(ci_high),
+            ci_level=ci_level,
             agreement=float(agreement),
             threshold=threshold,
             recommendations=recommendations,

@@ -113,7 +113,7 @@ class JudgeResult(BaseModel):
     """Result from LLM-as-a-judge evaluation."""
 
     record_id: str = Field(..., description="Golden record ID.")
-    score: int = Field(..., ge=1, le=5, description="Judge score (1–5).")
+    score: int = Field(..., ge=0, le=5, description="Judge score (0=error, 1–5).")
     hallucination: bool = Field(..., description="Whether the answer contains hallucinations.")
     wrong_citation: bool = Field(..., description="Whether the citation is incorrect.")
     incorrect_refusal: bool = Field(..., description="Whether the refusal was incorrect.")
@@ -205,7 +205,9 @@ class Annotation(BaseModel):
     @field_validator("hash", "prev_hash")
     @classmethod
     def hash_must_be_hex(cls, v: str) -> str:
-        if not v or len(v) != 64:
+        if not v:
+            return v  # Allow empty for intermediate construction
+        if len(v) != 64:
             raise ValueError("hash must be 64-character hex string")
         try:
             int(v, 16)
@@ -251,6 +253,7 @@ class CalibrationResult(BaseModel):
     kappa: float = Field(..., ge=-1, le=1, description="Cohen's kappa.")
     ci_low: float = Field(..., description="Lower bound of confidence interval.")
     ci_high: float = Field(..., description="Upper bound of confidence interval.")
+    ci_level: float = Field(..., ge=0, le=1, description="Confidence level used (e.g. 0.95).")
     agreement: float = Field(..., ge=0, le=1, description="Agreement rate.")
     threshold: float = Field(..., description="Threshold used for calibration.")
     recommendations: list[str] = Field(

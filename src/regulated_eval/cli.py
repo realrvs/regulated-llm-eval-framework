@@ -1,6 +1,26 @@
-"""CLI entry point for Regulated LLM Eval Framework."""
+"""CLI entry point for Regulated LLM Eval Framework.
+
+Covers FR-014.
+
+Commands:
+- dataset load: Load and validate golden set
+- dataset list: List available datasets
+- run: Run evaluation
+- calibrate: Calibrate judge
+- report: Generate report
+- ab: A/B test
+- conflicts resolve: Resolve judge-human conflicts
+- run replay: Replay previous run
+- annotations verify: Verify annotation chain
+- serve: Start HTTP server (optional)
+"""
 
 from __future__ import annotations
+
+import json
+import sys
+import uuid
+from pathlib import Path
 
 import typer
 
@@ -42,7 +62,7 @@ def main(
         None,
         "--config",
         "-c",
-        help="Path to YAML config file (CLI > env > config > defaults).",
+        help="Path to YAML config file.",
     ),
     log_level: str = typer.Option(
         "info",
@@ -60,7 +80,7 @@ def main(
         help="External run.id (uuid4); if not set — generated.",
     ),
 ) -> None:
-    """Global CLI flags — processed before subcommands."""
+    """Global CLI flags."""
     ctx.ensure_object(dict)
     ctx.obj["config"] = config
     ctx.obj["log_level"] = log_level
@@ -69,7 +89,7 @@ def main(
 
 
 # ============================================================
-# Placeholder subcommands — implemented in later tasks
+# Dataset commands (FR-001, FR-002)
 # ============================================================
 
 
@@ -82,12 +102,71 @@ def dataset_load(
     strict: bool = typer.Option(True, "--strict", help="Pydantic strict mode."),
 ) -> None:
     """Load and validate a golden set (FR-001)."""
-    typer.echo("[T-104] dataset load — not yet implemented")
+    from regulated_eval.datasets.loader import load_golden_set  # noqa: PLC0414
+    from regulated_eval.datasets.versioning import (  # noqa: PLC0414
+        create_golden_set_summary,
+        compute_dataset_hash,
+        next_version,
+    )
+
+    try:
+        records = load_golden_set(path, strict=strict)
+        dataset_hash = compute_dataset_hash(records)
+
+        if version is None:
+            version = "0.1.0"
+
+        summary = create_golden_set_summary(records, version, dataset_hash)
+
+        typer.echo(f"Dataset loaded: {summary.total_records} records")
+        typer.echo(f"Version: {summary.version}")
+        typer.echo(f"Content hash: {summary.content_hash}")
+        typer.echo(f"Expert validated ratio: {summary.expert_validated_ratio:.2%}")
+        typer.echo("")
+        typer.echo("By category:")
+        for cat, count in sorted(summary.by_category.items()):
+            typer.echo(f"  {cat}: {count}")
+        typer.echo("")
+        typer.echo("By difficulty:")
+        for diff, count in sorted(summary.by_difficulty.items()):
+            typer.echo(f"  {diff}: {count}")
+
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=2)
+
+
+@app.command()
+def dataset_list(
+    dataset_dir: str = typer.Option("datasets/", "--dir", "-d", help="Dataset directory."),
+) -> None:
+    """List available datasets (FR-002)."""
+    dataset_path = Path(dataset_dir)
+    if not dataset_path.exists():
+        typer.echo(f"Dataset directory not found: {dataset_dir}")
+        raise typer.Exit(code=3)
+
+    jsonl_files = list(dataset_path.glob("**/*.jsonl"))
+    json_files = list(dataset_path.glob("**/*.json"))
+    all_files = jsonl_files + json_files
+
+    if not all_files:
+        typer.echo("No datasets found.")
+        return
+
+    typer.echo("Available datasets:")
+    for f in sorted(all_files):
+        typer.echo(f"  {f.relative_to(dataset_path)}")
+
+
+# ============================================================
+# Run command (FR-003, FR-004, FR-006)
+# ============================================================
 
 
 @app.command()
 def run(
-    dataset: str = typer.Option(..., "--dataset", "-d", help="Dataset name@version, e.g. tax_qa_v1@1.2.0."),
+    dataset: str = typer.Option(..., "--dataset", "-d", help="Dataset path (file or directory)."),
     model: str = typer.Option(..., "--model", "-m", help="Model: yandexgpt, gigachat, openai_compat."),
     judge_model: str | None = typer.Option(
         None, "--judge-model", "-j", help="Judge model (default: same as --model)."
@@ -112,18 +191,90 @@ def run(
     ),
 ) -> None:
     """Run evaluation on golden set through model + judge (FR-003, FR-004, FR-006)."""
-    typer.echo("[T-1001] run — not yet implemented")
+    import asyncio
+
+    from regulated_eval.adapters import create_adapter  # noqa: PLC0414
+    from regulated_eval.config import Config  # noqa: PLC0414
+    from regulated_eval.exceptions import ForeignProviderNotAllowed  # noqa: PLC0414
+    from regulated_eval.observability import init_otel, shutdown_otel  # noqa: PLC0414
+    from regulated_eval.pipeline import EvalOrchestrator  # noqa: PLC0414
+    from regulated_eval.reports import generate_html_report, generate_markdown_report  # noqa: PLC0414
+
+    # Initialize OTel
+    init_otel()
+
+    # Create config
+    config = Config(
+        allow_foreign_provider=allow_foreign_provider,
+        acknowledge_152fz=i_understand_152fz,
+    )
+
+    # Validate foreign provider
+    adapter = create_adapter(model, config=config)
+    if adapter.is_foreign:
+        try:
+            config.validate_foreign_provider()
+        except ForeignProviderNotAllowed as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(code=4)
+
+    # Create orchestrator
+    orchestrator = EvalOrchestrator(adapter, config=config)
+
+    # Run evaluation
+    try:
+        result = asyncio.get_event_loop().run_until_complete(
+            orchestrator.run(
+                dataset_path=dataset,
+                seed=seed,
+            )
+        )
+
+        run_id = result["run_id"]
+        manifest = result["manifest"]
+        metrics = result["metrics"]
+
+        typer.echo(f"Run completed: {run_id}")
+        typer.echo(f"Records processed: {len(result['judge_results'])}")
+        typer.echo(f"Hallucination rate: {metrics.hallucination_rate:.2%}")
+        typer.echo(f"Citation accuracy: {metrics.citation_accuracy:.2%}")
+        typer.echo(f"Tokens: {manifest.tokens_input:,} in / {manifest.tokens_output:,} out")
+
+        # Generate report
+        if report_format in ("md", "both"):
+            report_path = generate_markdown_report(run_id, manifest, metrics)
+            typer.echo(f"Markdown report: {report_path}")
+
+        if report_format in ("html", "both"):
+            report_path = generate_html_report(run_id, manifest, metrics)
+            typer.echo(f"HTML report: {report_path}")
+
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+    finally:
+        shutdown_otel()
+
+
+# ============================================================
+# Calibrate command (FR-005)
+# ============================================================
 
 
 @app.command()
 def calibrate(
-    dataset: str = typer.Option(..., "--dataset", "-d", help="Calibration dataset name."),
-    judge_model: str = typer.Option(..., "--judge-model", "-j", help="Judge model for calibration."),
+    dataset: str = typer.Option(..., "--dataset", "-d", help="Calibration dataset path."),
+    judge_model: str = typer.Option(..., "--judge-model", "-j", help="Judge model."),
     threshold: float = typer.Option(0.6, "--threshold", "-t", help="Cohen's kappa threshold."),
     ci_level: float = typer.Option(0.95, "--ci-level", help="Confidence interval level."),
 ) -> None:
     """Calibrate judge against expert annotations (FR-005)."""
     typer.echo("[T-405] calibrate — not yet implemented")
+
+
+# ============================================================
+# Report command (FR-009)
+# ============================================================
 
 
 @app.command()
@@ -137,6 +288,86 @@ def report(
 ) -> None:
     """Generate Markdown/HTML report (FR-009)."""
     typer.echo("[T-803] report — not yet implemented")
+
+
+# ============================================================
+# A/B command (FR-008)
+# ============================================================
+
+
+@app.command()
+def ab(
+    prompt_a: str = typer.Option(..., "--prompt-a", help="Prompt A file or identifier."),
+    prompt_b: str = typer.Option(..., "--prompt-b", help="Prompt B file or identifier."),
+    dataset: str = typer.Option(..., "--dataset", "-d", help="Dataset path."),
+    model: str = typer.Option(..., "--model", "-m", help="Model to test."),
+) -> None:
+    """Run A/B test between two prompts or models (FR-008)."""
+    typer.echo("[T-702] ab — not yet implemented")
+
+
+# ============================================================
+# Conflicts resolve (FR-007)
+# ============================================================
+
+
+@app.command()
+def conflicts_resolve(
+    run_id: str = typer.Option(..., "--run", "-r", help="Run ID to resolve conflicts for."),
+) -> None:
+    """Resolve judge vs expert conflicts (FR-007)."""
+    typer.echo("[T-405] conflicts resolve — not yet implemented")
+
+
+# ============================================================
+# Run replay (FR-012)
+# ============================================================
+
+
+@app.command(name="replay")
+def run_replay(
+    run_id: str = typer.Option(..., "--run", "-r", help="Run ID to replay."),
+) -> None:
+    """Replay a previous run for reproducibility (FR-012)."""
+    typer.echo("[T-1003] run replay — not yet implemented")
+
+
+# ============================================================
+# Annotations verify (NFR-SEC-005)
+# ============================================================
+
+
+@app.command()
+def annotations_verify(
+    path: str = typer.Option("annotations/", "--path", "-p", help="Annotations directory."),
+) -> None:
+    """Verify annotation hash-chain integrity (NFR-SEC-005)."""
+    from regulated_eval.human_loop.annotation_store import AnnotationStore  # noqa: PLC0414
+
+    store = AnnotationStore(path)
+    is_valid, errors = store.verify_chain()
+
+    if is_valid:
+        typer.echo(f"Annotation chain valid ({len(store.load_all_annotations())} annotations)")
+    else:
+        typer.echo(f"Annotation chain INVALID: {len(errors)} errors")
+        for error in errors:
+            typer.echo(f"  - {error}")
+        raise typer.Exit(code=6)
+
+
+# ============================================================
+# Serve (optional HTTP server)
+# ============================================================
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("0.0.0.0", "--host", "-h", help="Host to bind to."),
+    port: int = typer.Option(8501, "--port", "-p", help="Port to bind to."),
+) -> None:
+    """Start the Streamlit serve UI (FR-007, optional)."""
+    typer.echo("[Optional] serve — use 'streamlit run' directly")
 
 
 # ============================================================

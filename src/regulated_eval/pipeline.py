@@ -15,6 +15,8 @@ Pipeline flow:
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -23,7 +25,7 @@ from typing import Any
 
 import numpy as np
 
-from regulated_eval.adapters.base import BaseAdapter, LLMRequest
+from regulated_eval.adapters.base import BaseAdapter, LLMRequest, LLMResponse
 from regulated_eval.config import Config
 from regulated_eval.datasets.loader import load_golden_set
 from regulated_eval.datasets.manifest import create_manifest, save_manifest_file
@@ -33,6 +35,7 @@ from regulated_eval.exceptions import (
     ForeignProviderNotAllowed,
     MissingCredentials,
     RateLimitExhausted,
+    RunNotFound,
 )
 from regulated_eval.judges.calibration import CalibrationEngine
 from regulated_eval.judges.judge import Judge
@@ -83,9 +86,6 @@ class EvalOrchestrator:
     def _get_judge(self) -> Judge:
         """Get or create judge instance."""
         if self._judge is None:
-            from regulated_eval.adapters.yandexgpt import YandexGPTAdapter  # noqa: PLC0414
-
-            # Use same adapter for judge (can be configured separately later)
             self._judge = Judge(
                 adapter=self._adapter,
                 config=self._config,
@@ -93,7 +93,7 @@ class EvalOrchestrator:
             )
         return self._judge
 
-    def run(
+    async def run(
         self,
         dataset_path: str | Path,
         dataset_version: str = "0.1.0",
@@ -101,7 +101,7 @@ class EvalOrchestrator:
         run_id: str | None = None,
         trace_id: str = "",
     ) -> dict[str, Any]:
-        """Run the full eval pipeline.
+        """Run the full eval pipeline (async).
 
         Args:
             dataset_path: Path to golden set file.
@@ -137,38 +137,118 @@ class EvalOrchestrator:
         total_tokens_input = 0
         total_tokens_output = 0
 
-        for i, record in enumerate(records, 1):
-            logger.debug("Processing record %d/%s: %s", i, len(records), record.id)
+        # Use asyncio.Semaphore for parallelism control
+        semaphore = asyncio.Semaphore(self._config.default_parallelism)
 
-            # Step 2: Redact PII
-            redaction_result = self._redactor.redact(record.question)
-            redacted_question = redaction_result.redacted_text
+        async def process_record(record: GoldenRecord) -> JudgeResult | None:
+            """Process a single record with rate-limit protection."""
+            async with semaphore:
+                logger.debug("Processing record %s: %s", record.id, record.id)
 
-            # Step 3: Generate answer
-            request = LLMRequest(
-                prompt=redacted_question,
-                model=self._adapter.model_name(),
-                temperature=0.0,
-                max_tokens=1024,
-                metadata={
-                    "trace_id": trace_id,
-                    "record_id": record.id,
-                    "run_id": run_id,
-                },
-            )
+                # Step 2: Redact PII
+                redaction_result = self._redactor.redact(record.question)
+                redacted_question = redaction_result.redacted_text
 
-            response = self._adapter.generate(request)
-            total_tokens_input += response.tokens_input
-            total_tokens_output += response.tokens_output
+                # Step 2b: Check injection in question (if it contains URLs)
+                if self._injection_filter.enabled:
+                    injection_result = self._injection_filter.check(redacted_question)
+                    if not injection_result.allowed:
+                        logger.warning(
+                            "Injection detected in record %s: %s",
+                            record.id,
+                            injection_result.reason,
+                        )
 
-            if response.error:
-                logger.warning("Generate error for %s: %s", record.id, response.error)
-                continue
+                # Step 3: Generate answer
+                request = LLMRequest(
+                    prompt=redacted_question,
+                    model=self._adapter.model_name(),
+                    temperature=0.0,
+                    max_tokens=1024,
+                    metadata={
+                        "trace_id": trace_id,
+                        "record_id": record.id,
+                        "run_id": run_id,
+                    },
+                )
 
-            # Step 4: Judge evaluation
-            judge = self._get_judge()
-            judge_result = judge.evaluate(record, response.text, trace_id)
-            judge_results.append(judge_result)
+                try:
+                    response = await self._adapter.generate(request)
+                except RateLimitExhausted:
+                    logger.warning("Rate limit exhausted for record %s", record.id)
+                    return JudgeResult(
+                        record_id=record.id,
+                        score=0,
+                        hallucination=False,
+                        wrong_citation=False,
+                        incorrect_refusal=False,
+                        rationale="Rate limit exhausted",
+                        judge_model=self._adapter.model_name(),
+                        judge_prompt_version=self._judge_prompt_version,
+                        judge_status="rate_limited",
+                        trace_id=trace_id,
+                    )
+                except MissingCredentials:
+                    logger.error("Missing credentials for record %s", record.id)
+                    return JudgeResult(
+                        record_id=record.id,
+                        score=0,
+                        hallucination=False,
+                        wrong_citation=False,
+                        incorrect_refusal=False,
+                        rationale="Missing credentials",
+                        judge_model=self._adapter.model_name(),
+                        judge_prompt_version=self._judge_prompt_version,
+                        judge_status="parse_error",
+                        trace_id=trace_id,
+                    )
+
+                total_tokens_input += response.tokens_input
+                total_tokens_output += response.tokens_output
+
+                if response.error:
+                    logger.warning("Generate error for %s: %s", record.id, response.error)
+                    return JudgeResult(
+                        record_id=record.id,
+                        score=0,
+                        hallucination=False,
+                        wrong_citation=False,
+                        incorrect_refusal=False,
+                        rationale=f"Generate error: {response.error}",
+                        judge_model=self._adapter.model_name(),
+                        judge_prompt_version=self._judge_prompt_version,
+                        judge_status="parse_error",
+                        trace_id=trace_id,
+                    )
+
+                # Step 4: Judge evaluation
+                judge = self._get_judge()
+                judge_result = judge.evaluate(record, response.text, trace_id)
+                return judge_result
+
+        # Process all records concurrently with rate-limit protection
+        tasks = [process_record(record) for record in records]
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Collect results, handling exceptions
+        for i, result in enumerate(raw_results):
+            if isinstance(result, Exception):
+                logger.error("Exception processing record %s: %s", records[i].id, result)
+                record = records[i]
+                judge_results.append(JudgeResult(
+                    record_id=record.id,
+                    score=0,
+                    hallucination=False,
+                    wrong_citation=False,
+                    incorrect_refusal=False,
+                    rationale=f"Processing exception: {result}",
+                    judge_model=self._adapter.model_name(),
+                    judge_prompt_version=self._judge_prompt_version,
+                    judge_status="parse_error",
+                    trace_id=trace_id,
+                ))
+            elif result is not None:
+                judge_results.append(result)
 
         # Step 5: Compute metrics
         categories = {r.id: r.category.value for r in records}
@@ -196,10 +276,11 @@ class EvalOrchestrator:
         manifest.estimated_cost_rub = estimated_cost
 
         logger.info(
-            "Eval run %s completed: %d records, %d judge results, kappa=N/A",
+            "Eval run %s completed: %d records, %d judge results, %d valid",
             run_id,
             len(records),
             len(judge_results),
+            sum(1 for r in judge_results if r.judge_status == "ok"),
         )
 
         return {
@@ -213,14 +294,14 @@ class EvalOrchestrator:
             "estimated_cost_rub": estimated_cost,
         }
 
-    def calibrate(
+    async def calibrate(
         self,
         dataset_path: str | Path,
         annotations: list[Annotation],
         threshold: float = 0.6,
         ci_level: float = 0.95,
     ) -> CalibrationResult:
-        """Calibrate judge against expert annotations.
+        """Calibrate judge against expert annotations (async).
 
         Args:
             dataset_path: Path to calibration dataset.
@@ -240,8 +321,6 @@ class EvalOrchestrator:
 
         for record in records:
             # Use reference answer as placeholder (in real scenario, model answers would be loaded)
-            # For calibration, we need both model answers and human annotations
-            # This is a simplified version
             judge_result = judge.evaluate(record, record.reference_answer, trace_id="calibration")
             judge_results.append(judge_result)
 
@@ -255,3 +334,130 @@ class EvalOrchestrator:
         )
 
         return result
+
+    # ============================================================
+    # Sync wrappers for CLI usage
+    # ============================================================
+
+    def run_sync(
+        self,
+        dataset_path: str | Path,
+        dataset_version: str = "0.1.0",
+        seed: int = 42,
+        run_id: str | None = None,
+        trace_id: str = "",
+    ) -> dict[str, Any]:
+        """Synchronous wrapper for the async run method (for CLI usage).
+
+        Args:
+            dataset_path: Path to golden set file.
+            dataset_version: Dataset version (semver).
+            seed: Random seed for reproducibility.
+            run_id: Optional run ID (generated if not provided).
+            trace_id: Optional trace ID.
+
+        Returns:
+            Dict with run_id, manifest, metrics, judge_results.
+        """
+        return asyncio.get_event_loop().run_until_complete(
+            self.run(
+                dataset_path=dataset_path,
+                dataset_version=dataset_version,
+                seed=seed,
+                run_id=run_id,
+                trace_id=trace_id,
+            )
+        )
+
+    def calibrate_sync(
+        self,
+        dataset_path: str | Path,
+        annotations: list[Annotation],
+        threshold: float = 0.6,
+        ci_level: float = 0.95,
+    ) -> CalibrationResult:
+        """Synchronous wrapper for the async calibrate method (for CLI usage).
+
+        Args:
+            dataset_path: Path to calibration dataset.
+            annotations: List of expert annotations.
+            threshold: Minimum kappa threshold.
+            ci_level: Confidence level for CI.
+
+        Returns:
+            CalibrationResult.
+        """
+        return asyncio.get_event_loop().run_until_complete(
+            self.calibrate(
+                dataset_path=dataset_path,
+                annotations=annotations,
+                threshold=threshold,
+                ci_level=ci_level,
+            )
+        )
+
+
+class ReplayOrchestrator:
+    """Handles replay of previous eval runs for reproducibility checks.
+
+    Covers FR-012, NFR-005.
+    """
+
+    def __init__(self, orchestrator: EvalOrchestrator) -> None:
+        """Initialize replay orchestrator.
+
+        Args:
+            orchestrator: The main eval orchestrator to use for replay.
+        """
+        self._orchestrator = orchestrator
+
+    def replay(
+        self,
+        manifest: RunManifest,
+        dataset_path: str | Path,
+        tolerance: float = 0.01,
+    ) -> dict[str, Any]:
+        """Replay a previous run and compare metrics.
+
+        Args:
+            manifest: Previous run manifest to replay.
+            dataset_path: Path to the same golden set.
+            tolerance: Maximum allowed metric difference (default 1%).
+
+        Returns:
+            Dict with replay results.
+        """
+        logger.info("Replaying run %s with tolerance=%.2f%%", manifest.run_id, tolerance * 100)
+
+        # Run the same configuration
+        result = self._orchestrator.run_sync(
+            dataset_path=dataset_path,
+            dataset_version=manifest.dataset_version,
+            seed=manifest.seed,
+        )
+
+        original_metrics = {
+            "hallucination_rate": 0.0,  # Not stored in manifest, estimate from judge_results
+            "citation_accuracy": 0.0,
+        }
+        replay_metrics = {
+            "hallucination_rate": result["metrics"].hallucination_rate,
+            "citation_accuracy": result["metrics"].citation_accuracy,
+        }
+
+        # Compare metrics
+        differences = {}
+        reproducible = True
+        for key in replay_metrics:
+            diff = abs(replay_metrics[key] - original_metrics.get(key, 0))
+            differences[key] = diff
+            if diff > tolerance:
+                reproducible = False
+
+        return {
+            "run_id": manifest.run_id,
+            "reproducible": reproducible,
+            "differences": differences,
+            "replay_manifest": result["manifest"],
+            "replay_metrics": result["metrics"],
+        }

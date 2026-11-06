@@ -6,8 +6,6 @@ Covers FR-013, NFR-SEC-001.
 
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

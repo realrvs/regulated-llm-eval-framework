@@ -11,7 +11,6 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from regulated_eval.config import Config  # noqa: PLC0414
 from regulated_eval.exceptions import ValidationError as EvalValidationError  # noqa: PLC0414
 from regulated_eval.schemas import Category, Difficulty, GoldenRecord  # noqa: PLC0414
 
