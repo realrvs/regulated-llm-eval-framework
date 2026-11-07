@@ -120,7 +120,7 @@ class Judge:
             },
         )
 
-        response = self._adapter.generate(request)
+        response = self._adapter.generate_sync(request)
 
         if response.error:
             logger.warning("Judge error for record %s: %s", record.id, response.error)
@@ -219,7 +219,7 @@ class Judge:
                     temperature=0.0,
                     max_tokens=1024,
                 )
-                response = self._adapter.generate(request)
+                response = self._adapter.generate_sync(request)
                 return self._parse_response(
                     response.text, record_id, trace_id, attempt + 1, max_attempts
                 )

@@ -5,6 +5,7 @@ Covers FR-003, NFR-008.
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
@@ -57,6 +58,17 @@ class BaseAdapter(ABC):
             RateLimitExhausted: If all retry attempts are exhausted.
             MissingCredentials: If API key is not set.
         """
+
+    def generate_sync(self, request: LLMRequest) -> LLMResponse:
+        """Synchronous wrapper for generate().
+
+        Args:
+            request: LLM request with prompt, model, etc.
+
+        Returns:
+            LLMResponse with text, tokens, latency, etc.
+        """
+        return asyncio.run(self.generate(request))
 
     @abstractmethod
     def provider(self) -> str:
