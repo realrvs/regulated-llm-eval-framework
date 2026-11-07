@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any
 
 from regulated_eval.adapters.base import BaseAdapter, LLMRequest, LLMResponse
@@ -107,52 +108,55 @@ class Judge:
         Returns:
             JudgeResult with score, flags, and rationale.
         """
-        import time
-
         start_time = time.monotonic()
         tracer = get_tracer("regulated-eval")
 
-        with tracer.start_as_current_span("judge.evaluate") as span:
+        span = None
+        if tracer is not None:
+            span = tracer.start_span("judge.evaluate")
             span.set_attribute("record.id", record.id)
             span.set_attribute("judge.model", self._adapter.model_name())
             span.set_attribute("judge.prompt_version", self._prompt_version)
 
-            prompt = self._build_prompt(record, model_answer)
+        prompt = self._build_prompt(record, model_answer)
 
-            request = LLMRequest(
-                prompt=prompt,
-                model=self._adapter.model_name(),
-                temperature=0.0,  # Deterministic evaluation
-                max_tokens=1024,
-                metadata={
-                    "trace_id": trace_id,
-                    "record_id": record.id,
-                    "role": "judge",
-                },
+        request = LLMRequest(
+            prompt=prompt,
+            model=self._adapter.model_name(),
+            temperature=0.0,  # Deterministic evaluation
+            max_tokens=1024,
+            metadata={
+                "trace_id": trace_id,
+                "record_id": record.id,
+                "role": "judge",
+            },
+        )
+
+        response = self._adapter.generate_sync(request)
+
+        if response.error:
+            logger.warning("Judge error for record %s: %s", record.id, response.error)
+            if span is not None:
+                span.set_attribute("judge.status", "error")
+                span.end()
+            return JudgeResult(
+                record_id=record.id,
+                score=0,
+                hallucination=False,
+                wrong_citation=False,
+                incorrect_refusal=False,
+                rationale=f"Judge error: {response.error}",
+                judge_model=self._adapter.model_name(),
+                judge_prompt_version=self._prompt_version,
+                judge_status="parse_error",
+                trace_id=trace_id,
             )
 
-            response = self._adapter.generate_sync(request)
+        # Parse JSON response with repair-retry
+        result = self._parse_response(response.text, record.id, trace_id)
 
-            if response.error:
-                logger.warning("Judge error for record %s: %s", record.id, response.error)
-                span.set_attribute("judge.status", "error")
-                return JudgeResult(
-                    record_id=record.id,
-                    score=0,
-                    hallucination=False,
-                    wrong_citation=False,
-                    incorrect_refusal=False,
-                    rationale=f"Judge error: {response.error}",
-                    judge_model=self._adapter.model_name(),
-                    judge_prompt_version=self._prompt_version,
-                    judge_status="parse_error",
-                    trace_id=trace_id,
-                )
-
-            # Parse JSON response with repair-retry
-            result = self._parse_response(response.text, record.id, trace_id)
-
-            # Record span attributes
+        # Record span attributes
+        if span is not None:
             span.set_attribute("judge.score", result.score)
             span.set_attribute("judge.hallucination", result.hallucination)
             span.set_attribute("judge.wrong_citation", result.wrong_citation)
@@ -161,8 +165,9 @@ class Judge:
 
             duration = time.monotonic() - start_time
             span.set_attribute("judge.duration_ms", duration * 1000)
+            span.end()
 
-            return result
+        return result
 
     def _build_prompt(self, record: GoldenRecord, model_answer: str) -> str:
         """Build the judge prompt."""

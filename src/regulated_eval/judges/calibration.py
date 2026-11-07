@@ -75,7 +75,13 @@ class CalibrationEngine:
         human_scores = [m["human_score"] for m in matched]
 
         # Compute Cohen's kappa
-        kappa = cohen_kappa_score(human_scores, judge_scores, weights="linear")
+        # If all scores are the same, kappa is 1.0 (perfect agreement)
+        if len(set(judge_scores)) == 1 and len(set(human_scores)) == 1:
+            kappa = 1.0
+        else:
+            kappa = cohen_kappa_score(human_scores, judge_scores, weights="linear")
+            if kappa != kappa:  # Handle NaN
+                kappa = 0.0
 
         # Compute bootstrap confidence interval
         ci_low, ci_high = self._bootstrap_ci(

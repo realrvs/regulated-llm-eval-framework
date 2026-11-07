@@ -1,10 +1,9 @@
-"""Pytest configuration for integration tests."""
+"""Shared fixtures for tests."""
 
-from __future__ import annotations
+import pytest
 
-import sys
-from pathlib import Path
 
-# Add src to path for imports
-src_path = Path(__file__).parent.parent / "src"
-sys.path.insert(0, str(src_path))
+@pytest.fixture
+def sample_dataset_path():
+    """Path to sample golden set dataset."""
+    return "datasets/tax_qa_v1/sample.jsonl"
