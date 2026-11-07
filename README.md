@@ -9,44 +9,12 @@
 
 ---
 
-## Зачем это нужно
-
-LLM-продукты в regulated-доменах несут высокий риск: галлюцинация в ответе про налоговый вычет или цитирование несуществующей статьи НК РФ приводит к финансовым потерям клиента и регуляторным последствиям (152-ФЗ). Продуктовые команды в финтехе/B2B SaaS для МСБ запускают LLM-фичи без системной оценки качества — полагаясь на демо и субъективные проверки.
-
-Существующие eval-фреймворки (Ragas, DeepEval, Promptfoo) не покрывают:
-- **калибровку LLM-as-a-judge** против экспертов-людей (Cohen's kappa) как обязательный шаг;
-- **regulated-специфику** (citation accuracy по НК РФ, refusal correctness);
-- **российские LLM** (YandexGPT, GigaChat) из коробки;
-- **human-in-the-loop** разметку бухгалтерами/юристами с разрешением конфликтов;
-- **PII-redaction под 152-ФЗ** до отправки в LLM.
-
-`regulated-llm-eval` закрывает эти пробелы.
-
-## Что внутри
-
-| Возможность | Что даёт |
-|---|---|
-| **Golden set management** | JSONL + Pydantic-схема, semver + content hash, воспроизводимость прогонов |
-| **LLM-as-a-judge с калибровкой** | Score 1–5 + бинарные флаги (hallucination, wrong citation, incorrect refusal), Cohen's kappa с CI, repair-retry на невалидный JSON |
-| **Метрики** | `hallucination_rate`, `citation_accuracy`, `refusal_correctness`, `factual_consistency`, агрегация по category/difficulty/model |
-| **Human-in-the-loop** | Streamlit UI для экспертов, hash-цепочка аннотаций (защита от подмены), CLI для разрешения конфликтов |
-| **A/B-тесты** | Bootstrap CI, Wilcoxon, Cohen's d, интерпретация `not_significant` |
-| **Адаптеры LLM** | YandexGPT, GigaChat, OpenAI-compatible (с явным opt-in под 152-ФЗ) |
-| **PII-redaction** | Presidio + кастомные regex для РФ (ИНН, СНИЛС, паспорт, телефон, адрес), audit-лог без значений |
-| **Prompt-injection фильтр** | Allowlist доменов + эвристики для retrieved-документов (RAG) |
-| **Observability** | OTel-инструментация (spans, metrics, audit-logs) с redaction-middleware, SLO: eval-run p95 ≤ 300s, judge p95 ≤ 5000ms |
-| **Отчёты** | Markdown / HTML с метриками, top-N ошибок, delta между прогонами |
-| **CLI + Library API** | Typer CLI и Python API — одинаковый функционал |
-
 ## Quickstart (≤ 5 минут)
 
 ### 1. Установка
 
 ```bash
 pip install regulated-eval
-
-# С полным стеком PII (Presidio + spaCy ru):
-pip install "regulated-eval[ru-ner]"
 ```
 
 ### 2. API-ключ провайдера
@@ -57,8 +25,6 @@ export YANDEXGPT_API_KEY="your-key"
 
 # GigaChat (российский, соответствует 152-ФЗ)
 export GIGACHAT_API_KEY="your-key"
-
-# OpenAI-compatible — только с явным opt-in (см. раздел 152-ФЗ)
 ```
 
 ### 3. Первый прогон
@@ -87,25 +53,31 @@ regulated-eval calibrate \
 # → PASS (kappa ≥ 0.6) или FAIL + рекомендации
 ```
 
-### 5. A/B-сравнение промптов
+### 5. A/B-сравнение моделей
 
 ```bash
 regulated-eval ab \
-  --prompt-a prompts/judge_v1.md \
-  --prompt-b prompts/judge_v2.md \
+  --model-a yandexgpt \
+  --model-b gigachat \
   --dataset tax_qa_v1@0.1.0 \
-  --model yandexgpt
+  --judge-model yandexgpt
 ```
 
-## Как это связано с продуктом
+## Что внутри
 
-Этот фреймворк — инструмент для **продуктовой команды**, запускающей LLM-фичи в regulated-домене. Он отвечает на вопросы:
-
-- **«Можно ли релизить?»** → калибровка judge (kappa ≥ 0.6) + `judge.parse_error.rate` ≤ 5% + `hallucination_rate` ниже baseline.
-- **«Стало ли лучше?»** → A/B-отчёт с bootstrap CI и p-value, а не «мне кажется».
-- **«Не нарушаем ли 152-ФЗ?»** → PII-redaction audit-лог, provider allowlist, тест `TC-SEC-002` с recall ≥ 99%.
-- **«Сколько это стоит?»** → `tokens_input`, `tokens_output`, `estimated_cost_rub` в манифесте каждого прогона.
-- **«Что если провайдер деградировал?»** → SLO `judge.p95 ≤ 5s`, alert `rate_limit.high`, статус `degraded` в отчёте.
+| Возможность | Что даёт |
+|---|---|
+| **Golden set management** | JSONL + Pydantic-схема, semver + content hash, воспроизводимость прогонов |
+| **LLM-as-a-judge с калибровкой** | Score 1–5 + бинарные флаги (hallucination, wrong citation, incorrect refusal), Cohen's kappa с CI, repair-retry на невалидный JSON |
+| **Метрики** | `hallucination_rate`, `citation_accuracy`, `refusal_correctness`, `factual_consistency`, агрегация по category/difficulty/model |
+| **Human-in-the-loop** | Streamlit UI для экспертов, hash-цепочка аннотаций (защита от подмены), CLI для разрешения конфликтов |
+| **A/B-тесты** | Bootstrap CI, Wilcoxon, Cohen's d, интерпретация `not_significant` |
+| **Адаптеры LLM** | YandexGPT, GigaChat, OpenAI-compatible (с явным opt-in под 152-ФЗ) |
+| **PII-redaction** | Presidio + кастомные regex для РФ (ИНН, СНИЛС, паспорт, телефон, адрес), audit-лог без значений |
+| **Prompt-injection фильтр** | Allowlist доменов + эвристики для retrieved-документов (RAG) |
+| **Observability** | OTel-инструментация (spans, metrics, audit-logs) с redaction-middleware, SLO: eval-run p95 ≤ 300s, judge p95 ≤ 5000ms |
+| **Отчёты** | Markdown / HTML с метриками, top-N ошибок, delta между прогонами |
+| **CLI + Library API** | Typer CLI и Python API — одинаковый функционал |
 
 ## Архитектура
 
@@ -127,13 +99,6 @@ flowchart LR
     Ann --> Orch
 ```
 
-**Ключевые точки:**
-- **TB-03 (PII redactor → LLM)** — PII редактируется до отправки в провайдера, audit-лог без значений.
-- **TB-05 (LLM output → judge)** — Pydantic strict + repair-retry, защита от prototype pollution и DoS.
-- **TB-08 (Application → OTel)** — `RedactingSpanProcessor` дропает не-allowlist атрибуты, PII не попадает в телеметрию.
-
-Полная архитектура — в [`design/design.md`](design/design.md), threat model — в [`threat-model/threat-model.md`](threat-model/threat-model.md).
-
 ## 152-ФЗ и foreign providers
 
 По умолчанию разрешены **только российские провайдеры** (YandexGPT, GigaChat) — они соответствуют 152-ФЗ. Для OpenAI-compatible требуется **двойной opt-in**:
@@ -153,7 +118,7 @@ export REGULATED_EVAL_ALLOW_FOREIGN_PROVIDER=true
 export REGULATED_EVAL_ACK_152FZ=true
 ```
 
-Каждое разрешение фиксируется в audit-логе `provider.foreign.allowed{ack_source}`. Подробнее — в [`docs/152fz.md`](docs/152fz.md).
+Каждое разрешение фиксируется в audit-логе `provider.foreign.allowed`. Подробнее — в [`docs/152fz.md`](docs/152fz.md).
 
 ## Метрики качества
 
@@ -202,7 +167,6 @@ regulated-llm-eval/
 
 - Python 3.11+
 - Git
-- (опционально) GitHub CLI для push
 
 ### Установка для разработки
 
@@ -213,8 +177,7 @@ cd regulated-llm-eval-framework
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-pip install -e ".[dev,ru-ner]"
-pre-commit install
+pip install -e ".[dev]"
 ```
 
 ### Тесты
@@ -235,9 +198,7 @@ mypy src/regulated_eval
 
 - [x] OpenSpec pipeline (proposal → specs → design → threat-model → adr → api-contract → test-specs → tasks → apply)
 - [x] MVP implementation (Foundation, Datasets, Adapters, Security, Judges, Metrics, Pipeline, Reports)
-- [ ] Phase 6: Human-in-the-loop (T-601..T-603)
-- [ ] Phase 7: A/B (T-701..T-703)
-- [ ] Phase 9: Observability (T-901..T-907)
+- [x] Phase 6-10: Human-loop, A/B, Reports, Observability, Pipeline
 - [ ] Phase 11: Tests (T-1101..T-1114)
 - [ ] Phase 12: CI (T-1201..T-1205)
 - [ ] Phase 13: Docs (T-1301..T-1305)
@@ -245,15 +206,6 @@ mypy src/regulated_eval
 - [ ] v1.0.0 release (PyPI)
 
 Полный план — в [`tasks/tasks.md`](tasks/tasks.md).
-
-## Почему OpenSpec
-
-Проект использует [OpenSpec v1.x](https://github.com/realrvs/openspec) — методологию, где каждый артефакт (proposal → specs → design → threat-model → adr → api-contract → test-specs → tasks → apply) создаётся последовательно, с обязательным threat modeling и Observability by Design. Это даёт:
-
-- **Трассируемость:** каждое требование (FR/NFR/NFR-SEC/NFR-OBS) → задача → тест → verify method.
-- **Безопасность с первого дня:** threat model до ADR, а не после.
-- **Наблюдаемость как артефакт проектирования:** 13 сигналов зафиксированы в spec, проверяются в test-specs, верифицируются в apply.
-- **Воспроизводимость:** `context.md` содержит Traceability Matrix, по которой можно восстановить любое решение.
 
 ## Contributing
 
