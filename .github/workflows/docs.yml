@@ -1,0 +1,20 @@
+name: docs-check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  docs-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check docs exist
+        run: |
+          test -f docs/PRD.md || { echo "Missing docs/PRD.md"; exit 1; }
+          test -f docs/methodology.md || { echo "Missing docs/methodology.md"; exit 1; }
+          test -f docs/case_study.md || { echo "Missing docs/case_study.md"; exit 1; }
+          echo "All required docs present"
