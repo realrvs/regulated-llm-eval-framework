@@ -6,8 +6,11 @@ Covers FR-003, NFR-008.
 from __future__ import annotations
 
 import asyncio
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+
+from regulated_eval.observability import get_tracer, record_llm_request_duration
 
 
 @dataclass
@@ -68,7 +71,35 @@ class BaseAdapter(ABC):
         Returns:
             LLMResponse with text, tokens, latency, etc.
         """
-        return asyncio.run(self.generate(request))
+        start_time = time.monotonic()
+        tracer = get_tracer("regulated-eval")
+
+        with tracer.start_as_current_span("adapter.call") as span:
+            span.set_attribute("llm.provider", self.provider())
+            span.set_attribute("llm.model", self.model_name())
+            span.set_attribute("llm.role", request.metadata.get("role", "generator"))
+
+            response = asyncio.run(self.generate(request))
+
+            # Record span attributes
+            span.set_attribute("llm.tokens_input", response.tokens_input)
+            span.set_attribute("llm.tokens_output", response.tokens_output)
+            span.set_attribute("llm.has_error", response.error is not None)
+
+            duration = time.monotonic() - start_time
+            response.latency_ms = duration * 1000
+            span.set_attribute("llm.duration_ms", response.latency_ms)
+
+            # Record metric
+            record_llm_request_duration(
+                {},
+                duration,
+                provider=self.provider(),
+                model=self.model_name(),
+                role=request.metadata.get("role", "generator"),
+            )
+
+            return response
 
     @abstractmethod
     def provider(self) -> str:

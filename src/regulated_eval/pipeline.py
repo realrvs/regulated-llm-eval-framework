@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,6 +41,7 @@ from regulated_eval.exceptions import (
 from regulated_eval.judges.calibration import CalibrationEngine
 from regulated_eval.judges.judge import Judge
 from regulated_eval.metrics.aggregator import MetricsAggregator
+from regulated_eval.observability import get_tracer, record_eval_run_duration, record_eval_run_failed
 from regulated_eval.schemas import (
     Annotation,
     CalibrationResult,
@@ -113,6 +115,9 @@ class EvalOrchestrator:
         Returns:
             Dict with run_id, manifest, metrics, judge_results.
         """
+        start_time = time.monotonic()
+        tracer = get_tracer("regulated-eval")
+
         # Validate foreign provider
         if self._adapter.is_foreign:
             self._config.validate_foreign_provider()
@@ -127,10 +132,22 @@ class EvalOrchestrator:
         logger.info("Starting eval run %s with seed=%d", run_id, seed)
         np.random.seed(seed)
 
+        # Create span for eval.run
+        span = None
+        if tracer is not None:
+            span = tracer.start_span("eval.run")
+            span.set_attribute("run.id", run_id)
+            span.set_attribute("dataset.version", dataset_version)
+            span.set_attribute("model.provider", self._adapter.provider())
+            span.set_attribute("model.name", self._adapter.model_name())
+            span.set_attribute("seed", seed)
+
         # Step 1: Load golden set
         records = load_golden_set(dataset_path, strict=False)
         dataset_hash = compute_dataset_hash(records)
         logger.info("Loaded %d records from %s", len(records), dataset_path)
+        if span is not None:
+            span.set_attribute("dataset.records", len(records))
 
         # Step 2-5: Process each record
         judge_results: list[JudgeResult] = []
@@ -275,6 +292,14 @@ class EvalOrchestrator:
         estimated_cost = self._adapter.estimate_cost(total_tokens_input, total_tokens_output)
         manifest.estimated_cost_rub = estimated_cost
 
+        # Record span attributes
+        if span is not None:
+            span.set_attribute("eval.records.total", len(records))
+            span.set_attribute("eval.records.processed", len(judge_results))
+            span.set_attribute("eval.records.valid", sum(1 for r in judge_results if r.judge_status == "ok"))
+            span.set_attribute("tokens.input", total_tokens_input)
+            span.set_attribute("tokens.output", total_tokens_output)
+
         logger.info(
             "Eval run %s completed: %d records, %d judge results, %d valid",
             run_id,
@@ -282,6 +307,22 @@ class EvalOrchestrator:
             len(judge_results),
             sum(1 for r in judge_results if r.judge_status == "ok"),
         )
+
+        # Record metrics
+        duration = time.monotonic() - start_time
+        record_eval_run_duration(
+            {},
+            duration,
+            attributes={
+                "run.id": run_id,
+                "model.provider": self._adapter.provider(),
+                "model.name": self._adapter.model_name(),
+            },
+        )
+
+        # End span
+        if span is not None:
+            span.end()
 
         return {
             "run_id": run_id,
