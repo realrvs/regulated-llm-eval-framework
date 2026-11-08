@@ -5,8 +5,6 @@ Covers T-1111, T-1112, FR-010, FR-011, FR-013, NFR-SEC-001..005.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from regulated_eval.security.injection_filter import InjectionFilter

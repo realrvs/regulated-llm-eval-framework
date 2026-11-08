@@ -5,7 +5,7 @@ Covers T-1107, T-1108, FR-005, FR-006, TM-13.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -14,7 +14,6 @@ from regulated_eval.metrics.aggregator import MetricsAggregator
 from regulated_eval.schemas import (
     Annotation,
     AnnotationSource,
-    CalibrationResult,
     JudgeResult,
     MetricsBlock,
 )
@@ -35,28 +34,28 @@ class TestMetricsAggregatorIntegration:
         results = []
         for i in range(n):
             has_hallucination = i < int(n * hallucination_rate)
-            has_wrong_citation = (
-                i >= int(n * hallucination_rate)
-                and i < int(n * (hallucination_rate + wrong_citation_rate))
+            has_wrong_citation = i >= int(n * hallucination_rate) and i < int(
+                n * (hallucination_rate + wrong_citation_rate)
             )
-            has_incorrect_refusal = (
-                i >= int(n * (hallucination_rate + wrong_citation_rate))
-                and i < int(n * (hallucination_rate + wrong_citation_rate + incorrect_refusal_rate))
+            has_incorrect_refusal = i >= int(n * (hallucination_rate + wrong_citation_rate)) and i < int(
+                n * (hallucination_rate + wrong_citation_rate + incorrect_refusal_rate)
             )
 
             score = max(1, min(5, int(avg_score + (i % 3) - 1)))
 
-            results.append(JudgeResult(
-                record_id=f"test_{i:03d}",
-                score=score,
-                hallucination=has_hallucination,
-                wrong_citation=has_wrong_citation,
-                incorrect_refusal=has_incorrect_refusal,
-                rationale=f"Test rationale {i}",
-                judge_model="yandexgpt",
-                judge_prompt_version="v1",
-                trace_id="test-trace",
-            ))
+            results.append(
+                JudgeResult(
+                    record_id=f"test_{i:03d}",
+                    score=score,
+                    hallucination=has_hallucination,
+                    wrong_citation=has_wrong_citation,
+                    incorrect_refusal=has_incorrect_refusal,
+                    rationale=f"Test rationale {i}",
+                    judge_model="yandexgpt",
+                    judge_prompt_version="v1",
+                    trace_id="test-trace",
+                )
+            )
         return results
 
     def test_aggregate_basic(self) -> None:
@@ -216,16 +215,18 @@ class TestCalibrationEngineIntegration:
                 score = 3
             else:
                 score = 5
-            results.append(JudgeResult(
-                record_id=f"cal_{i:03d}",
-                score=score,
-                hallucination=False,
-                wrong_citation=False,
-                incorrect_refusal=False,
-                rationale="Calibration test",
-                judge_model="yandexgpt",
-                judge_prompt_version="v1",
-            ))
+            results.append(
+                JudgeResult(
+                    record_id=f"cal_{i:03d}",
+                    score=score,
+                    hallucination=False,
+                    wrong_citation=False,
+                    incorrect_refusal=False,
+                    rationale="Calibration test",
+                    judge_model="yandexgpt",
+                    judge_prompt_version="v1",
+                )
+            )
         return results
 
     def _create_annotations_for_calibration(
@@ -234,7 +235,7 @@ class TestCalibrationEngineIntegration:
         agreement: float = 0.8,
     ) -> list[Annotation]:
         """Create expert annotations matching judge results."""
-        from datetime import datetime, timezone  # noqa: PLC0414
+        from datetime import datetime  # noqa: PLC0414
 
         annotations = []
         for i in range(n):
@@ -245,18 +246,20 @@ class TestCalibrationEngineIntegration:
                 score = 3
             else:
                 score = 5
-            annotations.append(Annotation(
-                record_id=f"cal_{i:03d}",
-                score=score,
-                hallucination=False,
-                wrong_citation=False,
-                incorrect_refusal=False,
-                annotator_id="expert_01",
-                timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
-                hash="a" * 64,
-                prev_hash="b" * 64,
-                source=AnnotationSource.HUMAN,
-            ))
+            annotations.append(
+                Annotation(
+                    record_id=f"cal_{i:03d}",
+                    score=score,
+                    hallucination=False,
+                    wrong_citation=False,
+                    incorrect_refusal=False,
+                    annotator_id="expert_01",
+                    timestamp=datetime(2024, 1, 1, tzinfo=UTC),
+                    hash="a" * 64,
+                    prev_hash="b" * 64,
+                    source=AnnotationSource.HUMAN,
+                )
+            )
         return annotations
 
     def test_calibration_pass(self) -> None:
@@ -302,7 +305,7 @@ class TestCalibrationEngineIntegration:
                 wrong_citation=False,
                 incorrect_refusal=False,
                 annotator_id="expert_01",
-                timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                timestamp=datetime(2024, 1, 1, tzinfo=UTC),
                 hash="a" * 64,
                 prev_hash="b" * 64,
                 source=AnnotationSource.HUMAN,
@@ -343,7 +346,7 @@ class TestCalibrationEngineIntegration:
                 wrong_citation=False,
                 incorrect_refusal=False,
                 annotator_id="expert_01",
-                timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                timestamp=datetime(2024, 1, 1, tzinfo=UTC),
                 hash="a" * 64,
                 prev_hash="b" * 64,
                 source=AnnotationSource.HUMAN,
@@ -396,7 +399,7 @@ class TestCalibrationEngineIntegration:
                 wrong_citation=False,
                 incorrect_refusal=False,
                 annotator_id="expert_01",
-                timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                timestamp=datetime(2024, 1, 1, tzinfo=UTC),
                 hash="a" * 64,
                 prev_hash="b" * 64,
                 source=AnnotationSource.HUMAN,

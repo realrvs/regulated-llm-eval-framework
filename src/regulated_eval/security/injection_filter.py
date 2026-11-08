@@ -10,8 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -109,15 +108,17 @@ class InjectionFilter:
         self,
         allowlist: list[str] | None = None,
         enabled: bool = True,
+        allowed_domains: list[str] | None = None,
     ) -> None:
         """Initialize injection filter.
 
         Args:
             allowlist: List of trusted domain suffixes.
             enabled: Whether the filter is active.
+            allowed_domains: Alias for allowlist (for backwards compatibility).
         """
         self._enabled = enabled
-        self._allowlist = allowlist or self.DEFAULT_ALLOWLIST
+        self._allowlist = allowlist or allowed_domains or self.DEFAULT_ALLOWLIST
 
     def check(self, content: str, source: str = "") -> InjectionCheckResult:
         """Check if content contains prompt injection.
@@ -166,16 +167,18 @@ class InjectionFilter:
 
     def _is_domain_allowed(self, domain: str) -> bool:
         """Check if domain is in the allowlist."""
-        for allowed in self._allowlist:
-            if allowed in domain:
-                return True
-        return False
+        return any(allowed in domain for allowed in self._allowlist)
 
     def add_domain(self, domain: str) -> None:
         """Add a domain to the allowlist."""
         if domain not in self._allowlist:
             self._allowlist.append(domain)
             logger.info("Added domain to allowlist: %s", domain)
+
+    @property
+    def enabled(self) -> bool:
+        """Return whether the filter is active."""
+        return self._enabled
 
     @property
     def allowlist(self) -> list[str]:

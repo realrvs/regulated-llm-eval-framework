@@ -22,7 +22,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +62,7 @@ class PIIRedactor:
         # СНИЛС (XXX-YYY-ZZZ WW — 11 digits with optional dashes/spaces)
         (
             "SNILS",
-            re.compile(
-                r"\b(?!000-000-00\s\d|999-999-99\s\d)\d{3}[-\s]?\d{3}[-\s]?\d{2}[-\s]?\d{1}(?!\d)\b"
-            ),
+            re.compile(r"\b(?!000-000-00\s\d|999-999-99\s\d)\d{3}[-\s]?\d{3}[-\s]?\d{2}[-\s]?\d{1}(?!\d)\b"),
         ),
         # Паспорт (серия и номер — 4+4 or 4+6 digits, optionally with "паспорт" keyword)
         # Серия: 0000-9999 (все возможные), Номер: 6 или 4 цифры
@@ -79,9 +76,7 @@ class PIIRedactor:
         # Телефон RU (+7, 8, 9 formats)
         (
             "PHONE",
-            re.compile(
-                r"(?:\+7|8|7)[.\s-]?[\s-]?\(?\d{3}\)?[.\s-]?\d{3}[.\s-]?\d{2}[.\s-]?\d{2}(?!\d)"
-            ),
+            re.compile(r"(?:\+7|8|7)[.\s-]?[\s-]?\(?\d{3}\)?[.\s-]?\d{3}[.\s-]?\d{2}[.\s-]?\d{2}(?!\d)"),
         ),
         # Email
         (
@@ -95,9 +90,7 @@ class PIIRedactor:
         # Full name in format "Фамилия И.О." or "Фамилия Имя Отчество"
         (
             "PERSON",
-            re.compile(
-                r"\b([А-ЯЁ][а-яё]{2,}\s+[А-ЯЁ][а-яё]*\.?[\s.]+[А-ЯЁ][а-яё]*\.?)\b"
-            ),
+            re.compile(r"\b([А-ЯЁ][а-яё]{2,}\s+[А-ЯЁ][а-яё]*\.?[\s.]+[А-ЯЁ][а-яё]*\.?)\b"),
         ),
     ]
 
@@ -154,11 +147,7 @@ class PIIRedactor:
                     original_values[field_name] = matches[0].group()
                 # Replace matches (reverse order to preserve positions)
                 for match in reversed(matches):
-                    redacted = (
-                        redacted[: match.start()]
-                        + f"[{field_name}]"
-                        + redacted[match.end():]
-                    )
+                    redacted = redacted[: match.start()] + f"[{field_name}]" + redacted[match.end() :]
 
         # Process ФИО patterns (lower recall, optional)
         if self._enable_fio:
@@ -170,12 +159,8 @@ class PIIRedactor:
                         original_values[field_name] = matches[0].group()
                     for match in reversed(matches):
                         # Only redact if the match is not already within a placeholder
-                        if "[PERSON]" not in redacted[max(0, match.start()-10):match.start()]:
-                            redacted = (
-                                redacted[: match.start()]
-                                + f"[{field_name}]"
-                                + redacted[match.end():]
-                            )
+                        if "[PERSON]" not in redacted[max(0, match.start() - 10) : match.start()]:
+                            redacted = redacted[: match.start()] + f"[{field_name}]" + redacted[match.end() :]
 
         # Process адрес patterns (lower recall, optional)
         if self._enable_address:
@@ -189,11 +174,7 @@ class PIIRedactor:
                         # Only redact if match is reasonably specific (has street/house keywords)
                         text_segment = match.group().lower()
                         if any(kw in text_segment for kw in ["ул", "пр", "д", "кв", "г ", "г."]):
-                            redacted = (
-                                redacted[: match.start()]
-                                + f"[{field_name}]"
-                                + redacted[match.end():]
-                            )
+                            redacted = redacted[: match.start()] + f"[{field_name}]" + redacted[match.end() :]
 
         # Log redaction (only field names, never values)
         if redacted_fields:

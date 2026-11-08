@@ -3,23 +3,17 @@
 Covers TC-OBS-001..010.
 """
 
-import json
-import os
-from unittest.mock import MagicMock, patch
-
-import pytest
-
 from regulated_eval.observability import (
-    get_tracer,
     get_meter,
+    get_tracer,
     init_otel,
     is_otel_enabled,
-    shutdown_otel,
-    register_metrics,
     record_eval_run_duration,
     record_llm_request_duration,
+    register_metrics,
+    shutdown_otel,
 )
-from regulated_eval.observability.logs import StructuredLogger, AuditLogger, _get_trace_id
+from regulated_eval.observability.logs import AuditLogger, StructuredLogger, _get_trace_id
 
 
 class TestOtelSetup:
@@ -87,7 +81,10 @@ class TestAuditLogger:
             logger.pii_redacted("INN", run_id="run-1", trace_id="trace-1")
 
         assert "security.pii.redacted" in caplog.text
-        assert "INN" in caplog.text
+        # Field name should be in structured data
+        record = caplog.records[0]
+        assert hasattr(record, "structured_data")
+        assert record.structured_data.get("field.name") == "INN"
         # PII value should NOT be in logs
         assert "770123456789" not in caplog.text
 
@@ -135,6 +132,7 @@ class TestMetricsRecording:
     def test_register_metrics(self):
         """Metrics should be registerable."""
         from opentelemetry import metrics as metrics_api
+
         meter = metrics_api.NoOpMeterProvider().get_meter("test")
         registered = register_metrics(meter)
         assert "eval_run_duration" in registered

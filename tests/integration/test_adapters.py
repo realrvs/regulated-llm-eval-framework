@@ -8,14 +8,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 
-from regulated_eval.adapters.base import LLMRequest, LLMResponse
+from regulated_eval.adapters.base import LLMRequest
 from regulated_eval.adapters.retry import (
     RateLimitError,
     RateLimitExhausted,
     check_rate_limit,
-    get_retry_decorator,
     retry_with_backoff,
 )
 
@@ -63,6 +61,7 @@ class TestRetryLogic:
     @pytest.mark.asyncio
     async def test_retry_exhausted_raises(self) -> None:
         """Test RateLimitExhausted after max retries."""
+
         async def always_fail() -> str:
             raise RateLimitError("Always rate limited")
 

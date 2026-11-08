@@ -12,7 +12,6 @@ Metrics:
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import pandas as pd
 
@@ -72,23 +71,17 @@ class MetricsAggregator:
         refusal_correctness = sum(1 for r in valid_results if not r.incorrect_refusal) / n
 
         # Factual consistency: score >= 3 and no hallucination
-        factual_consistency = sum(
-            1 for r in valid_results if r.score >= 3 and not r.hallucination
-        ) / n
+        factual_consistency = sum(1 for r in valid_results if r.score >= 3 and not r.hallucination) / n
 
         # Compute by category
         by_category: dict[str, dict[str, float]] = {}
         if categories:
-            by_category = self._compute_grouped_metrics(
-                valid_results, categories, "category"
-            )
+            by_category = self._compute_grouped_metrics(valid_results, categories, "category")
 
         # Compute by difficulty
         by_difficulty: dict[str, dict[str, float]] = {}
         if difficulties:
-            by_difficulty = self._compute_grouped_metrics(
-                valid_results, difficulties, "difficulty"
-            )
+            by_difficulty = self._compute_grouped_metrics(valid_results, difficulties, "difficulty")
 
         return MetricsBlock(
             hallucination_rate=round(hallucination_rate, 4),
@@ -121,20 +114,11 @@ class MetricsAggregator:
             if n == 0:
                 continue
             result[group_name_val] = {
-                "hallucination_rate": round(
-                    sum(1 for r in group_results if r.hallucination) / n, 4
-                ),
-                "citation_accuracy": round(
-                    sum(1 for r in group_results if not r.wrong_citation) / n, 4
-                ),
-                "refusal_correctness": round(
-                    sum(1 for r in group_results if not r.incorrect_refusal) / n, 4
-                ),
+                "hallucination_rate": round(sum(1 for r in group_results if r.hallucination) / n, 4),
+                "citation_accuracy": round(sum(1 for r in group_results if not r.wrong_citation) / n, 4),
+                "refusal_correctness": round(sum(1 for r in group_results if not r.incorrect_refusal) / n, 4),
                 "factual_consistency": round(
-                    sum(
-                        1 for r in group_results if r.score >= 3 and not r.hallucination
-                    )
-                    / n,
+                    sum(1 for r in group_results if r.score >= 3 and not r.hallucination) / n,
                     4,
                 ),
             }

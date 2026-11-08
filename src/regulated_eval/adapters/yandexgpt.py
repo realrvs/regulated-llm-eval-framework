@@ -6,7 +6,6 @@ Covers FR-003, TM-08, ADR-002.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import httpx
 

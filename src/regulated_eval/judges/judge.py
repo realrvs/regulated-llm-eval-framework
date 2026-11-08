@@ -15,11 +15,9 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any
 
-from regulated_eval.adapters.base import BaseAdapter, LLMRequest, LLMResponse
+from regulated_eval.adapters.base import BaseAdapter, LLMRequest
 from regulated_eval.config import Config
-from regulated_eval.exceptions import RateLimitExhausted
 from regulated_eval.observability import get_tracer
 from regulated_eval.schemas import GoldenRecord, JudgeResult
 
@@ -248,9 +246,7 @@ class Judge:
                     max_tokens=1024,
                 )
                 response = self._adapter.generate_sync(request)
-                return self._parse_response(
-                    response.text, record_id, trace_id, attempt + 1, max_attempts
-                )
+                return self._parse_response(response.text, record_id, trace_id, attempt + 1, max_attempts)
             else:
                 logger.error(
                     "Judge parse failed for record %s after %d attempts: %s",

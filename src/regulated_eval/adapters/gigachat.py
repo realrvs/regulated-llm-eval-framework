@@ -6,7 +6,6 @@ Covers FR-003, TM-08, ADR-002.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import httpx
 
@@ -106,9 +105,7 @@ class GigaChatAdapter(BaseAdapter):
                     response.status_code,
                     response.text,
                 )
-                raise MissingCredentials(
-                    f"GigaChat token request failed: {response.status_code}"
-                )
+                raise MissingCredentials(f"GigaChat token request failed: {response.status_code}")
 
             data = response.json()
             self._access_token = data.get("access_token", "")

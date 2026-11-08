@@ -3,21 +3,16 @@
 Covers TC-023, TC-024, TC-SEC-001, TC-SEC-001b, TC-SEC-004.
 """
 
-import json
-import os
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from regulated_eval.config import Config
 from regulated_eval.exceptions import ForeignProviderNotAllowed
 from regulated_eval.security.secrets import (
     get_api_key,
+    log_adapter_init,
     mask_api_key,
     sanitize_for_logging,
     validate_api_keys,
-    log_adapter_init,
 )
 
 
@@ -26,7 +21,7 @@ class TestGetApiKey:
 
     def test_get_existing_key(self, monkeypatch):
         monkeypatch.setenv("TEST_PROVIDER_API_KEY", "secret-key-123")
-        key = get_api_key("test_provider", env_prefix="TEST_")
+        key = get_api_key("PROVIDER", env_prefix="TEST_")
         assert key == "secret-key-123"
 
     def test_get_existing_key_yandex(self, monkeypatch):

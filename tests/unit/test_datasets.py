@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -165,7 +164,7 @@ class TestValidateExpertValidatedRatio:
 
     def test_ratio_below_threshold(self) -> None:
         """Test ratio below 0.8 threshold."""
-        from regulated_eval.schemas import GoldenRecord, Category, Difficulty
+        from regulated_eval.schemas import Category, Difficulty, GoldenRecord
 
         records = [
             GoldenRecord(
@@ -190,7 +189,7 @@ class TestGetRecordStats:
 
     def test_get_stats(self) -> None:
         """Test getting record statistics."""
-        from regulated_eval.schemas import GoldenRecord, Category, Difficulty
+        from regulated_eval.schemas import Category, Difficulty, GoldenRecord
 
         records = [
             GoldenRecord(

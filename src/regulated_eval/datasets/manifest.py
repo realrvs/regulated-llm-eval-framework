@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
 from regulated_eval.schemas import RunManifest
 
@@ -141,11 +140,7 @@ def verify_manifest_chain(
         return False
 
     # Verify chain if previous manifest exists
-    if prev_manifest is not None:
-        if manifest.prev_hash != prev_manifest.hash:
-            return False
-
-    return True
+    return not (prev_manifest is not None and manifest.prev_hash != prev_manifest.hash)
 
 
 def get_latest_manifest(manifest_dir: Path | str) -> RunManifest | None:

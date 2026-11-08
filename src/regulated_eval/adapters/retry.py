@@ -5,9 +5,9 @@ Covers FR-003, NFR-008, TM-07.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from tenacity import (
     RetryCallState,
@@ -15,7 +15,6 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
-from tenacity.wait import wait_base
 
 from regulated_eval.exceptions import RateLimitExhausted
 
@@ -106,9 +105,7 @@ async def retry_with_backoff(
     try:
         return await retry_dec(func)(*args, **kwargs)
     except Exception as e:
-        raise RateLimitExhausted(
-            f"All {max_retries} retry attempts exhausted. Last error: {e}"
-        ) from e
+        raise RateLimitExhausted(f"All {max_retries} retry attempts exhausted. Last error: {e}") from e
 
 
 def check_rate_limit(response: Any) -> None:

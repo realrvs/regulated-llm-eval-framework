@@ -11,16 +11,15 @@ Provides:
 from __future__ import annotations
 
 import logging
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from regulated_eval.human_loop.annotation_store import AnnotationStore
-from regulated_eval.schemas import Annotation
 
 logger = logging.getLogger(__name__)
 
 
-class ResolutionType(str, Enum):
+class ResolutionType(StrEnum):
     """Types of conflict resolution."""
 
     ACCEPT_HUMAN = "accept_human"
@@ -75,15 +74,17 @@ class ConflictResolver:
             for annotation in annotations:
                 diff = abs(judge_score - annotation.score)
                 if diff >= self._conflict_threshold:
-                    conflicts.append({
-                        "record_id": record_id,
-                        "judge_score": judge_score,
-                        "expert_score": annotation.score,
-                        "difference": diff,
-                        "annotator_id": annotation.annotator_id,
-                        "hallucination_judge": False,  # Would need judge results
-                        "hallucination_expert": annotation.hallucination,
-                    })
+                    conflicts.append(
+                        {
+                            "record_id": record_id,
+                            "judge_score": judge_score,
+                            "expert_score": annotation.score,
+                            "difference": diff,
+                            "annotator_id": annotation.annotator_id,
+                            "hallucination_judge": False,  # Would need judge results
+                            "hallucination_expert": annotation.hallucination,
+                        }
+                    )
 
         if conflicts:
             logger.info(

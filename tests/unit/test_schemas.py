@@ -5,8 +5,7 @@ Covers T-1101, FR-001, FR-004, FR-012, NFR-SEC-005.
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -257,9 +256,8 @@ class TestAnnotation:
 
     def test_hash_verification(self) -> None:
         """Test annotation hash verification."""
-        from datetime import datetime, timezone  # noqa: PLC0414
 
-        ts = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        ts = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         annotation = Annotation(
             record_id="test_001",
             score=4,

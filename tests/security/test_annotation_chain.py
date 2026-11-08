@@ -3,11 +3,6 @@
 Covers TC-SEC-005, TC-SEC-005b.
 """
 
-import tempfile
-from pathlib import Path
-
-import pytest
-
 from regulated_eval.human_loop.annotation_store import AnnotationStore
 from regulated_eval.schemas import AnnotationSource
 
@@ -42,6 +37,7 @@ class TestHashChainIntegrity:
 
         # Tamper with a2
         from regulated_eval.schemas import Annotation
+
         tampered = Annotation(
             record_id="rec-2",
             score=1,  # Changed from 5
@@ -63,8 +59,8 @@ class TestHashChainIntegrity:
         a1 = store.create_annotation("rec-1", 4, False, False, False, "expert-1")
         store.save_annotation(a1)
 
-        # a2 with wrong prev_hash
-        a2 = store.create_annotation("rec-2", 5, False, False, False, "expert-1", prev_hash="wrong-hash")
+        # a2 with wrong prev_hash (64-char hex but incorrect)
+        a2 = store.create_annotation("rec-2", 5, False, False, False, "expert-1", prev_hash="0" * 64)
         store.save_annotation(a2)
 
         valid, errors = store.verify_chain()
@@ -76,8 +72,22 @@ class TestHashChainIntegrity:
         store = AnnotationStore(storage_path=tmp_path)
 
         old_data = [
-            {"record_id": "rec-1", "score": 4, "hallucination": False, "wrong_citation": False, "incorrect_refusal": False, "annotator_id": "expert-1"},
-            {"record_id": "rec-2", "score": 3, "hallucination": True, "wrong_citation": False, "incorrect_refusal": False, "annotator_id": "expert-1"},
+            {
+                "record_id": "rec-1",
+                "score": 4,
+                "hallucination": False,
+                "wrong_citation": False,
+                "incorrect_refusal": False,
+                "annotator_id": "expert-1",
+            },
+            {
+                "record_id": "rec-2",
+                "score": 3,
+                "hallucination": True,
+                "wrong_citation": False,
+                "incorrect_refusal": False,
+                "annotator_id": "expert-1",
+            },
         ]
 
         migrated = store.migrate_existing_annotations(old_data)

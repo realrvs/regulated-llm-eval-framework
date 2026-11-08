@@ -91,10 +91,12 @@ def init_otel(service_name: str = "regulated-eval") -> dict[str, Any]:
         from regulated_eval.observability.redaction import RedactingSpanProcessor
 
         # Create resource
-        resource = Resource.create({
-            "service.name": service_name,
-            "service.version": "0.1.0",
-        })
+        resource = Resource.create(
+            {
+                "service.name": service_name,
+                "service.version": "0.1.0",
+            }
+        )
 
         # Initialize TracerProvider
         sampling_ratio = _get_sampling_ratio()
@@ -176,6 +178,7 @@ def get_tracer(name: str = "regulated-eval") -> Any:
             return None
 
     from opentelemetry import trace
+
     return trace.get_tracer(name)
 
 
@@ -195,6 +198,7 @@ def get_meter(name: str = "regulated-eval") -> Any:
         init_otel()
 
     from opentelemetry import metrics
+
     return metrics.get_meter(name)
 
 

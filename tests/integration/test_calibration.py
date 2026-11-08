@@ -16,19 +16,30 @@ def _make_annotation(record_id: str, score: int) -> Annotation:
     hash_input = f"{record_id}:{score}:expert-1"
     h = hashlib.sha256(hash_input.encode()).hexdigest()
     return Annotation(
-        record_id=record_id, score=score, hallucination=False,
-        wrong_citation=False, incorrect_refusal=False,
-        annotator_id="expert-1", hash=h, prev_hash="",
+        record_id=record_id,
+        score=score,
+        hallucination=False,
+        wrong_citation=False,
+        incorrect_refusal=False,
+        annotator_id="expert-1",
+        hash=h,
+        prev_hash="",
         source=AnnotationSource.HUMAN,
     )
 
 
 def _make_judge_result(record_id: str, score: int) -> JudgeResult:
     return JudgeResult(
-        record_id=record_id, score=score, hallucination=False,
-        wrong_citation=False, incorrect_refusal=False,
-        rationale="test", judge_model="test-judge",
-        judge_prompt_version="v1", judge_status="ok", trace_id="test",
+        record_id=record_id,
+        score=score,
+        hallucination=False,
+        wrong_citation=False,
+        incorrect_refusal=False,
+        rationale="test",
+        judge_model="test-judge",
+        judge_prompt_version="v1",
+        judge_status="ok",
+        trace_id="test",
     )
 
 

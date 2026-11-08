@@ -5,10 +5,8 @@ Covers FR-009, NFR-007.
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 from regulated_eval.schemas import CalibrationResult, MetricsBlock, RunManifest
 
@@ -63,21 +61,17 @@ def _build_html(
     Returns:
         HTML string.
     """
-    generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    generated = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    cost_display = (
-        f"{manifest.estimated_cost_rub:.4f} RUB"
-        if manifest.estimated_cost_rub is not None
-        else "N/A"
-    )
+    cost_display = f"{manifest.estimated_cost_rub:.4f} RUB" if manifest.estimated_cost_rub is not None else "N/A"
 
     html_parts = [
         "<!DOCTYPE html>",
-        "<html lang=\"en\">",
+        '<html lang="en">',
         "<head>",
-        "<meta charset=\"UTF-8\">",
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
-        "<title>Eval Report: {}".format(run_id),
+        '<meta charset="UTF-8">',
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+        f"<title>Eval Report: {run_id}",
         "</title>",
         "<style>",
         "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }",
@@ -98,120 +92,109 @@ def _build_html(
         "</style>",
         "</head>",
         "<body>",
-        "<div class=\"container\">",
-        "<h1>Eval Report: {}".format(run_id),
-        "<p><small>Generated: {}</small></p>".format(generated),
+        '<div class="container">',
+        f"<h1>Eval Report: {run_id}",
+        f"<p><small>Generated: {generated}</small></p>",
         "</div>",
     ]
 
     # Summary cards
-    html_parts.extend([
-        "<div class=\"container\">",
-        "<h2>Summary</h2>",
-        "<div class=\"summary-grid\">",
-        '<div class="summary-card"><label>Dataset</label><value>{} v{}</value></div>'.format(
-            manifest.dataset_version.split(".")[0] if "." in manifest.dataset_version else manifest.dataset_version,
-            manifest.dataset_version,
-        ),
-        '<div class="summary-card"><label>Model</label><value>{}/{} </value></div>'.format(
-            manifest.model_provider, manifest.model_name
-        ),
-        '<div class="summary-card"><label>Judge</label><value>{}</value></div>'.format(
-            manifest.judge_model
-        ),
-        '<div class="summary-card"><label>Tokens (in/out)</label><value>{:,} / {:,}</value></div>'.format(
-            manifest.tokens_input, manifest.tokens_output
-        ),
-        '<div class="summary-card"><label>Cost</label><value>{}</value></div>'.format(cost_display),
-        '<div class="summary-card"><label>Seed</label><value>{}</value></div>'.format(manifest.seed),
-        "</div>",
-    ])
+    html_parts.extend(
+        [
+            '<div class="container">',
+            "<h2>Summary</h2>",
+            '<div class="summary-grid">',
+            '<div class="summary-card"><label>Dataset</label><value>{} v{}</value></div>'.format(
+                manifest.dataset_version.split(".")[0] if "." in manifest.dataset_version else manifest.dataset_version,
+                manifest.dataset_version,
+            ),
+            f'<div class="summary-card"><label>Model</label><value>{manifest.model_provider}/{manifest.model_name} </value></div>',
+            f'<div class="summary-card"><label>Judge</label><value>{manifest.judge_model}</value></div>',
+            f'<div class="summary-card"><label>Tokens (in/out)</label><value>{manifest.tokens_input:,} / {manifest.tokens_output:,}</value></div>',
+            f'<div class="summary-card"><label>Cost</label><value>{cost_display}</value></div>',
+            f'<div class="summary-card"><label>Seed</label><value>{manifest.seed}</value></div>',
+            "</div>",
+        ]
+    )
 
     # Metrics
-    html_parts.extend([
-        "<h2>Metrics</h2>",
-        "<table>",
-        "<tr><th>Metric</th><th>Value</th></tr>",
-        "<tr><td>Hallucination Rate</td><td class=\"metric\">{:.2%}</td></tr>".format(
-            metrics.hallucination_rate
-        ),
-        "<tr><td>Citation Accuracy</td><td class=\"metric\">{:.2%}</td></tr>".format(
-            metrics.citation_accuracy
-        ),
-        "<tr><td>Refusal Correctness</td><td class=\"metric\">{:.2%}</td></tr>".format(
-            metrics.refusal_correctness
-        ),
-        "<tr><td>Factual Consistency</td><td class=\"metric\">{:.2%}</td></tr>".format(
-            metrics.factual_consistency
-        ),
-        "</table>",
-    ])
+    html_parts.extend(
+        [
+            "<h2>Metrics</h2>",
+            "<table>",
+            "<tr><th>Metric</th><th>Value</th></tr>",
+            f'<tr><td>Hallucination Rate</td><td class="metric">{metrics.hallucination_rate:.2%}</td></tr>',
+            f'<tr><td>Citation Accuracy</td><td class="metric">{metrics.citation_accuracy:.2%}</td></tr>',
+            f'<tr><td>Refusal Correctness</td><td class="metric">{metrics.refusal_correctness:.2%}</td></tr>',
+            f'<tr><td>Factual Consistency</td><td class="metric">{metrics.factual_consistency:.2%}</td></tr>',
+            "</table>",
+        ]
+    )
 
     # Metrics by category
     if metrics.by_category:
-        html_parts.extend([
-            "<h2>Metrics by Category</h2>",
-            "<table>",
-            "<tr><th>Category</th><th>Hallucination</th><th>Citation</th><th>Refusal</th><th>Consistency</th></tr>",
-        ])
+        html_parts.extend(
+            [
+                "<h2>Metrics by Category</h2>",
+                "<table>",
+                "<tr><th>Category</th><th>Hallucination</th><th>Citation</th><th>Refusal</th><th>Consistency</th></tr>",
+            ]
+        )
         for cat, cat_metrics in sorted(metrics.by_category.items()):
             hr = cat_metrics.get("hallucination_rate", 0)
             ca = cat_metrics.get("citation_accuracy", 0)
             rc = cat_metrics.get("refusal_correctness", 0)
             fc = cat_metrics.get("factual_consistency", 0)
             html_parts.append(
-                "<tr><td>{}</td><td>{:.2%}</td><td>{:.2%}</td><td>{:.2%}</td><td>{:.2%}</td></tr>".format(
-                    cat, hr, ca, rc, fc
-                )
+                f"<tr><td>{cat}</td><td>{hr:.2%}</td><td>{ca:.2%}</td><td>{rc:.2%}</td><td>{fc:.2%}</td></tr>"
             )
         html_parts.append("</table>")
 
     # Metrics by difficulty
     if metrics.by_difficulty:
-        html_parts.extend([
-            "<h2>Metrics by Difficulty</h2>",
-            "<table>",
-            "<tr><th>Difficulty</th><th>Hallucination</th><th>Citation</th><th>Refusal</th><th>Consistency</th></tr>",
-        ])
+        html_parts.extend(
+            [
+                "<h2>Metrics by Difficulty</h2>",
+                "<table>",
+                "<tr><th>Difficulty</th><th>Hallucination</th><th>Citation</th><th>Refusal</th><th>Consistency</th></tr>",
+            ]
+        )
         for diff, diff_metrics in sorted(metrics.by_difficulty.items()):
             hr = diff_metrics.get("hallucination_rate", 0)
             ca = diff_metrics.get("citation_accuracy", 0)
             rc = diff_metrics.get("refusal_correctness", 0)
             fc = diff_metrics.get("factual_consistency", 0)
             html_parts.append(
-                "<tr><td>{}</td><td>{:.2%}</td><td>{:.2%}</td><td>{:.2%}</td><td>{:.2%}</td></tr>".format(
-                    diff, hr, ca, rc, fc
-                )
+                f"<tr><td>{diff}</td><td>{hr:.2%}</td><td>{ca:.2%}</td><td>{rc:.2%}</td><td>{fc:.2%}</td></tr>"
             )
         html_parts.append("</table>")
 
     # Calibration
     if calibration:
         status_class = "pass" if calibration.status == "PASS" else "fail"
-        html_parts.extend([
-            "<h2>Judge Calibration</h2>",
-            "<table>",
-            "<tr><td>Status</td><td class=\"{}\">{}</td></tr>".format(status_class, calibration.status),
-            "<tr><td>Cohen's Kappa</td><td>{:.2f} [{}% CI {:.2f}-{:.2f}]</td></tr>".format(
-                calibration.kappa,
-                int(calibration.ci_level * 100),
-                calibration.ci_low,
-                calibration.ci_high,
-            ),
-            "<tr><td>Agreement Rate</td><td>{:.2%}</td></tr>".format(calibration.agreement),
-            "<tr><td>Threshold</td><td>{}</td></tr>".format(calibration.threshold),
-            "</table>",
-        ])
+        html_parts.extend(
+            [
+                "<h2>Judge Calibration</h2>",
+                "<table>",
+                f'<tr><td>Status</td><td class="{status_class}">{calibration.status}</td></tr>',
+                f"<tr><td>Cohen's Kappa</td><td>{calibration.kappa:.2f} [{int(calibration.ci_level * 100)}% CI {calibration.ci_low:.2f}-{calibration.ci_high:.2f}]</td></tr>",
+                f"<tr><td>Agreement Rate</td><td>{calibration.agreement:.2%}</td></tr>",
+                f"<tr><td>Threshold</td><td>{calibration.threshold}</td></tr>",
+                "</table>",
+            ]
+        )
         if calibration.recommendations:
             html_parts.append("<h3>Recommendations</h3><ul>")
             for rec in calibration.recommendations:
-                html_parts.append("<li>{}</li>".format(rec))
+                html_parts.append(f"<li>{rec}</li>")
             html_parts.append("</ul>")
 
-    html_parts.extend([
-        "</div>",
-        "</body>",
-        "</html>",
-    ])
+    html_parts.extend(
+        [
+            "</div>",
+            "</body>",
+            "</html>",
+        ]
+    )
 
     return "\n".join(html_parts)

@@ -5,15 +5,11 @@ Covers TC-028, TC-030, TC-034, TC-040, TC-041.
 
 import time
 
-import pytest
-
-from regulated_eval.metrics.aggregator import MetricsAggregator
-from regulated_eval.security.pii_redactor import PIIRedactor
-from regulated_eval.security.injection_filter import InjectionFilter
+from regulated_eval.adapters.base import BaseAdapter, LLMRequest, LLMResponse
 from regulated_eval.datasets.loader import load_golden_set
-from regulated_eval.adapters.base import LLMRequest, LLMResponse
-from regulated_eval.adapters.base import BaseAdapter
-from regulated_eval.config import Config
+from regulated_eval.metrics.aggregator import MetricsAggregator
+from regulated_eval.security.injection_filter import InjectionFilter
+from regulated_eval.security.pii_redactor import PIIRedactor
 
 
 class MockFastAdapter(BaseAdapter):
@@ -58,7 +54,7 @@ class TestPIIRedactionPerformance:
         text = "ФИО: Иванов Иван Иванович, СНИЛС: 123-456-789 01, паспорт 45 12 123456"
 
         start = time.monotonic()
-        result = redactor.redact(text)
+        redactor.redact(text)
         duration = time.monotonic() - start
 
         assert duration < 0.1
@@ -69,7 +65,7 @@ class TestPIIRedactionPerformance:
         text = "Вопрос: " + " ".join(["Какие документы нужны для УСН?"] * 100)
 
         start = time.monotonic()
-        result = redactor.redact(text)
+        redactor.redact(text)
         duration = time.monotonic() - start
 
         assert duration < 0.5
@@ -78,9 +74,11 @@ class TestPIIRedactionPerformance:
 class TestMetricsAggregationPerformance:
     """Test metrics aggregation performance (TC-040, TC-041)."""
 
-    def _make_result(self, record_id: str, score: int, hallucination: bool = False,
-                     wrong_citation: bool = False) -> "JudgeResult":
+    def _make_result(
+        self, record_id: str, score: int, hallucination: bool = False, wrong_citation: bool = False
+    ) -> "JudgeResult":
         from regulated_eval.schemas import JudgeResult
+
         return JudgeResult(
             record_id=record_id,
             score=score,
@@ -96,10 +94,8 @@ class TestMetricsAggregationPerformance:
 
     def test_aggregate_150_records(self):
         """Aggregate 150 records (typical eval run) within 1 second."""
-        from regulated_eval.schemas import JudgeResult
         results = [
-            self._make_result(f"rec-{i}", 4 if i % 3 != 0 else 2,
-                            hallucination=i % 5 == 0, wrong_citation=i % 7 == 0)
+            self._make_result(f"rec-{i}", 4 if i % 3 != 0 else 2, hallucination=i % 5 == 0, wrong_citation=i % 7 == 0)
             for i in range(150)
         ]
         categories = {f"rec-{i}": ["tax", "accounting", "legal"][i % 3] for i in range(150)}
@@ -116,14 +112,11 @@ class TestMetricsAggregationPerformance:
 
     def test_aggregate_1000_records(self):
         """Aggregate 1000 records within 5 seconds."""
-        from regulated_eval.schemas import JudgeResult
-        results = [
-            self._make_result(f"rec-{i}", 4) for i in range(1000)
-        ]
+        results = [self._make_result(f"rec-{i}", 4) for i in range(1000)]
 
         start = time.monotonic()
         agg = MetricsAggregator()
-        metrics = agg.aggregate(results)
+        agg.aggregate(results)
         duration = time.monotonic() - start
 
         assert duration < 5.0
@@ -147,14 +140,14 @@ class TestInjectionFilterPerformance:
         filter_ = InjectionFilter(enabled=True)
         text = "Смотри https://evil.com/inject.txt"
 
-        result = filter_.check(text)
+        result = filter_.check(text, source="https://evil.com/inject.txt")
         assert result.allowed is False  # Not in allowlist
 
     def test_check_with_allowed_url(self):
         filter_ = InjectionFilter(enabled=True, allowed_domains=["example.com"])
         text = "Смотри https://example.com/doc"
 
-        result = filter_.check(text)
+        result = filter_.check(text, source="https://example.com/doc")
         assert result.allowed is True
 
 

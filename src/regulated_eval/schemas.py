@@ -11,19 +11,18 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Literal
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # ============================================================
 # Enums
 # ============================================================
 
 
-class Category(str, Enum):
+class Category(StrEnum):
     """Golden set categories (tax/accounting/legal)."""
 
     USN = "УСН"
@@ -33,7 +32,7 @@ class Category(str, Enum):
     OTHER = "прочее"
 
 
-class Difficulty(str, Enum):
+class Difficulty(StrEnum):
     """Question difficulty levels."""
 
     EASY = "easy"
@@ -41,14 +40,14 @@ class Difficulty(str, Enum):
     HARD = "hard"
 
 
-class AnnotationSource(str, Enum):
+class AnnotationSource(StrEnum):
     """Source of annotation."""
 
     HUMAN = "human"
     JUDGE_ESCALATED = "judge_escalated"
 
 
-class AckSource(str, Enum):
+class AckSource(StrEnum):
     """How foreign provider was acknowledged."""
 
     CLI_FLAGS = "cli_flags"
@@ -74,9 +73,7 @@ class GoldenRecord(BaseModel):
     citations: list[str] = Field(default_factory=list, description="Citations (e.g. 'НК РФ ст. 346.16 п. 1').")
     category: Category = Field(..., description="Tax/accounting category.")
     difficulty: Difficulty = Field(..., description="Difficulty level.")
-    expert_validated: bool = Field(
-        default=False, description="Whether the record has been validated by an expert."
-    )
+    expert_validated: bool = Field(default=False, description="Whether the record has been validated by an expert.")
 
     @field_validator("id")
     @classmethod
@@ -135,7 +132,7 @@ class RunManifest(BaseModel):
     """Reproducible run manifest with hash-chain integrity."""
 
     run_id: str = Field(..., description="Unique run identifier (uuid4).")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     dataset_version: str = Field(..., description="Golden set version (semver).")
     dataset_content_hash: str = Field(..., description="SHA-256 hash of golden set content.")
     model_provider: str = Field(..., description="LLM provider (yandexgpt, gigachat).")
@@ -195,12 +192,10 @@ class Annotation(BaseModel):
     wrong_citation: bool = Field(..., description="Expert's wrong citation flag.")
     incorrect_refusal: bool = Field(..., description="Expert's incorrect refusal flag.")
     annotator_id: str = Field(..., min_length=1, description="Expert identifier.")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     hash: str = Field(..., description="SHA-256 hash for integrity.")
     prev_hash: str = Field(..., description="SHA-256 hash of previous annotation.")
-    source: AnnotationSource = Field(
-        default=AnnotationSource.HUMAN, description="Source of annotation."
-    )
+    source: AnnotationSource = Field(default=AnnotationSource.HUMAN, description="Source of annotation.")
 
     @field_validator("hash", "prev_hash")
     @classmethod
@@ -238,9 +233,7 @@ class MetricsBlock(BaseModel):
     citation_accuracy: float = Field(..., ge=0, le=1, description="Overall citation accuracy.")
     refusal_correctness: float = Field(..., ge=0, le=1, description="Overall refusal correctness.")
     factual_consistency: float = Field(..., ge=0, le=1, description="Overall factual consistency.")
-    by_category: dict[str, dict[str, float]] = Field(
-        default_factory=dict, description="Metrics grouped by category."
-    )
+    by_category: dict[str, dict[str, float]] = Field(default_factory=dict, description="Metrics grouped by category.")
     by_difficulty: dict[str, dict[str, float]] = Field(
         default_factory=dict, description="Metrics grouped by difficulty."
     )
@@ -256,9 +249,7 @@ class CalibrationResult(BaseModel):
     ci_level: float = Field(..., ge=0, le=1, description="Confidence level used (e.g. 0.95).")
     agreement: float = Field(..., ge=0, le=1, description="Agreement rate.")
     threshold: float = Field(..., description="Threshold used for calibration.")
-    recommendations: list[str] = Field(
-        default_factory=list, description="Recommendations if calibration failed."
-    )
+    recommendations: list[str] = Field(default_factory=list, description="Recommendations if calibration failed.")
 
 
 class GoldenSetSummary(BaseModel):
@@ -267,12 +258,6 @@ class GoldenSetSummary(BaseModel):
     version: str = Field(..., description="Dataset version (semver).")
     content_hash: str = Field(..., description="SHA-256 hash of dataset content.")
     total_records: int = Field(..., ge=1, le=5000, description="Total records in dataset.")
-    by_category: dict[str, int] = Field(
-        default_factory=dict, description="Record count by category."
-    )
-    by_difficulty: dict[str, int] = Field(
-        default_factory=dict, description="Record count by difficulty."
-    )
-    expert_validated_ratio: float = Field(
-        ..., ge=0, le=1, description="Ratio of expert-validated records."
-    )
+    by_category: dict[str, int] = Field(default_factory=dict, description="Record count by category.")
+    by_difficulty: dict[str, int] = Field(default_factory=dict, description="Record count by difficulty.")
+    expert_validated_ratio: float = Field(..., ge=0, le=1, description="Ratio of expert-validated records.")

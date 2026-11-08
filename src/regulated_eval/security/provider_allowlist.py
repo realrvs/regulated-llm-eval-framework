@@ -10,13 +10,13 @@ Provides:
 from __future__ import annotations
 
 import logging
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class ProviderType(str, Enum):
+class ProviderType(StrEnum):
     """Classification of LLM providers."""
 
     RUSSIAN = "russian"  # Data residency in Russia, 152-FZ compliant
@@ -99,10 +99,7 @@ class ProviderAllowlist:
             return self._allow_foreign and self._acknowledge_152fz
 
         # Custom providers
-        if provider in self._custom_allowlist:
-            return True
-
-        return False
+        return provider in self._custom_allowlist
 
     def get_provider_info(self, provider: str) -> dict[str, Any] | None:
         """Get information about a provider.
@@ -200,10 +197,12 @@ class ProviderAllowlist:
         """
         providers = []
         for name, info in ALL_PROVIDERS.items():
-            providers.append({
-                "name": name,
-                "display_name": info["display_name"],
-                "type": info["type"].value,
-                "allowed": self.is_provider_allowed(name),
-            })
+            providers.append(
+                {
+                    "name": name,
+                    "display_name": info["display_name"],
+                    "type": info["type"].value,
+                    "allowed": self.is_provider_allowed(name),
+                }
+            )
         return providers

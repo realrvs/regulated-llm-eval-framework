@@ -10,7 +10,6 @@ Provides:
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 from pathlib import Path
@@ -72,8 +71,8 @@ class AnnotationStore:
                 annotation.record_id,
             )
 
-        # Store annotation
-        self._annotations[annotation.record_id] = annotation
+        # Store annotation using hash as unique key (multiple annotators per record)
+        self._annotations[annotation.hash] = annotation
         if annotation.record_id not in self._chain:
             self._chain.append(annotation.record_id)
 
@@ -87,7 +86,7 @@ class AnnotationStore:
         return True
 
     def load_annotation(self, record_id: str) -> Annotation | None:
-        """Load an annotation by record ID.
+        """Load the latest annotation by record ID.
 
         Args:
             record_id: Record identifier.
@@ -95,12 +94,15 @@ class AnnotationStore:
         Returns:
             Annotation if found, None otherwise.
         """
-        if record_id in self._annotations:
-            return self._annotations[record_id]
+        # Search by record_id (multiple annotators per record)
+        matching = [a for a in self._annotations.values() if a.record_id == record_id]
+        if matching:
+            return matching[-1]  # Return latest
 
         # Try loading from disk
         self._load_from_disk()
-        return self._annotations.get(record_id)
+        matching = [a for a in self._annotations.values() if a.record_id == record_id]
+        return matching[-1] if matching else None
 
     def load_all_annotations(self) -> list[Annotation]:
         """Load all annotations from storage.
@@ -124,42 +126,34 @@ class AnnotationStore:
             self._load_from_disk()
 
         for i, record_id in enumerate(self._chain):
-            annotation = self._annotations.get(record_id)
+            # Find annotation by record_id (multiple annotators per record)
+            annotation = next((a for a in self._annotations.values() if a.record_id == record_id), None)
             if annotation is None:
                 errors.append(f"Missing annotation for record {record_id}")
                 continue
 
             # Verify individual hash
             if not annotation.verify_hash():
-                errors.append(
-                    f"Hash verification failed for record {record_id}"
-                )
+                errors.append(f"Hash verification failed for record {record_id}")
                 continue
 
             # Verify chain link
             if i > 0:
                 prev_id = self._chain[i - 1]
-                prev_annotation = self._annotations.get(prev_id)
+                prev_annotation = next((a for a in self._annotations.values() if a.record_id == prev_id), None)
                 if prev_annotation is None:
-                    errors.append(
-                        f"Chain broken: {record_id} references missing {prev_id}"
-                    )
+                    errors.append(f"Chain broken: {record_id} references missing {prev_id}")
                     continue
 
                 expected_prev_hash = prev_annotation.hash
                 if annotation.prev_hash != expected_prev_hash:
-                    errors.append(
-                        f"Chain broken: {record_id} prev_hash doesn't match "
-                        f"{prev_id} hash"
-                    )
+                    errors.append(f"Chain broken: {record_id} prev_hash doesn't match {prev_id} hash")
 
         is_valid = len(errors) == 0
         if is_valid:
             logger.info("Annotation chain verification passed (%d annotations)", len(self._chain))
         else:
-            logger.warning(
-                "Annotation chain verification failed: %d errors", len(errors)
-            )
+            logger.warning("Annotation chain verification failed: %d errors", len(errors))
 
         return is_valid, errors
 
@@ -238,9 +232,7 @@ class AnnotationStore:
         for annotation in migrated:
             self.save_annotation(annotation)
 
-        logger.info(
-            "Migrated %d annotations to hash-chain format", len(migrated)
-        )
+        logger.info("Migrated %d annotations to hash-chain format", len(migrated))
         return migrated
 
     def get_annotations_by_record(self, record_id: str) -> list[Annotation]:
@@ -252,10 +244,7 @@ class AnnotationStore:
         Returns:
             List of annotations for the record.
         """
-        return [
-            a for a in self._annotations.values()
-            if a.record_id == record_id
-        ]
+        return [a for a in self._annotations.values() if a.record_id == record_id]
 
     def get_conflicts(self, judge_scores: dict[str, int], threshold: int = 2) -> list[dict[str, Any]]:
         """Find conflicts between judge scores and expert annotations.
@@ -273,13 +262,15 @@ class AnnotationStore:
             for annotation in annotations:
                 diff = abs(judge_score - annotation.score)
                 if diff >= threshold:
-                    conflicts.append({
-                        "record_id": record_id,
-                        "judge_score": judge_score,
-                        "expert_score": annotation.score,
-                        "difference": diff,
-                        "annotator_id": annotation.annotator_id,
-                    })
+                    conflicts.append(
+                        {
+                            "record_id": record_id,
+                            "judge_score": judge_score,
+                            "expert_score": annotation.score,
+                            "difference": diff,
+                            "annotator_id": annotation.annotator_id,
+                        }
+                    )
         return conflicts
 
     def _save_to_disk(self) -> None:
@@ -289,17 +280,15 @@ class AnnotationStore:
 
         file_path = self._storage_path / "annotations.jsonl"
         with file_path.open("w", encoding="utf-8") as f:
-            for record_id in self._chain:
-                annotation = self._annotations.get(record_id)
-                if annotation:
-                    f.write(
-                        json.dumps(
-                            annotation.model_dump(mode="json"),
-                            ensure_ascii=False,
-                            default=str,
-                        )
-                        + "\n"
+            for annotation in self._annotations.values():
+                f.write(
+                    json.dumps(
+                        annotation.model_dump(mode="json"),
+                        ensure_ascii=False,
+                        default=str,
                     )
+                    + "\n"
+                )
 
     def _load_from_disk(self) -> None:
         """Load all annotations from disk."""
@@ -318,7 +307,7 @@ class AnnotationStore:
                 try:
                     data = json.loads(line)
                     annotation = Annotation.model_validate(data)
-                    self._annotations[annotation.record_id] = annotation
+                    self._annotations[annotation.hash] = annotation
                     if annotation.record_id not in self._chain:
                         self._chain.append(annotation.record_id)
                 except Exception as e:

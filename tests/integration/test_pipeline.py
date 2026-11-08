@@ -5,9 +5,9 @@ Covers T-1109, T-1110, FR-003, FR-004, FR-006, FR-010, FR-012.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -16,8 +16,6 @@ from regulated_eval.schemas import (
     AnnotationSource,
     Category,
     Difficulty,
-    GoldenRecord,
-    JudgeResult,
 )
 
 
@@ -57,7 +55,7 @@ class TestEvalOrchestratorIntegration:
     @pytest.mark.asyncio
     async def test_full_pipeline_flow(self, tmp_path: Path) -> None:
         """Test full pipeline: load → redact → generate → judge → metrics."""
-        from regulated_eval.adapters.base import BaseAdapter, LLMRequest, LLMResponse  # noqa: PLC0414
+        from regulated_eval.adapters.base import BaseAdapter, LLMResponse  # noqa: PLC0414
         from regulated_eval.config import Config  # noqa: PLC0414
         from regulated_eval.pipeline import EvalOrchestrator  # noqa: PLC0414
 
@@ -104,12 +102,12 @@ class TestEvalOrchestratorIntegration:
     @pytest.mark.asyncio
     async def test_pipeline_with_pii_redaction(self, tmp_path: Path) -> None:
         """Test pipeline redacts PII from questions."""
+        # Create dataset with PII
+        import json  # noqa: PLC0414
+
         from regulated_eval.adapters.base import BaseAdapter, LLMResponse  # noqa: PLC0414
         from regulated_eval.config import Config  # noqa: PLC0414
         from regulated_eval.pipeline import EvalOrchestrator  # noqa: PLC0414
-
-        # Create dataset with PII
-        import json  # noqa: PLC0414
 
         records = [
             {
@@ -129,9 +127,7 @@ class TestEvalOrchestratorIntegration:
         )
 
         mock_adapter = MagicMock(spec=BaseAdapter)
-        mock_adapter.generate = AsyncMock(
-            return_value=LLMResponse(text="Ответ", tokens_input=50, tokens_output=25)
-        )
+        mock_adapter.generate = AsyncMock(return_value=LLMResponse(text="Ответ", tokens_input=50, tokens_output=25))
         mock_adapter.provider.return_value = "yandexgpt"
         mock_adapter.model_name.return_value = "yandexgpt-lite"
         mock_adapter.is_foreign = False
@@ -146,7 +142,7 @@ class TestEvalOrchestratorIntegration:
     @pytest.mark.asyncio
     async def test_pipeline_rate_limit_handling(self, tmp_path: Path) -> None:
         """Test pipeline handles rate limits gracefully."""
-        from regulated_eval.adapters.base import BaseAdapter, LLMResponse  # noqa: PLC0414
+        from regulated_eval.adapters.base import BaseAdapter  # noqa: PLC0414
         from regulated_eval.config import Config  # noqa: PLC0414
         from regulated_eval.exceptions import RateLimitExhausted  # noqa: PLC0414
         from regulated_eval.pipeline import EvalOrchestrator  # noqa: PLC0414
@@ -177,9 +173,7 @@ class TestEvalOrchestratorIntegration:
         dataset_path = self._create_sample_dataset(tmp_path)
 
         mock_adapter = MagicMock(spec=BaseAdapter)
-        mock_adapter.generate = AsyncMock(
-            return_value=LLMResponse(text="Answer", tokens_input=50, tokens_output=25)
-        )
+        mock_adapter.generate = AsyncMock(return_value=LLMResponse(text="Answer", tokens_input=50, tokens_output=25))
         mock_adapter.provider.return_value = "yandexgpt"
         mock_adapter.model_name.return_value = "yandexgpt-lite"
         mock_adapter.is_foreign = False
@@ -198,6 +192,7 @@ class TestReplayOrchestratorIntegration:
     def _create_sample_dataset(self, tmp_path: Path) -> Path:
         """Create a sample golden set file."""
         import json  # noqa: PLC0414
+
         from regulated_eval.schemas import Category, Difficulty  # noqa: PLC0414
 
         records = [
@@ -230,9 +225,7 @@ class TestReplayOrchestratorIntegration:
         dataset_path = self._create_sample_dataset(tmp_path)
 
         mock_adapter = MagicMock(spec=BaseAdapter)
-        mock_adapter.generate = AsyncMock(
-            return_value=LLMResponse(text="Answer", tokens_input=50, tokens_output=25)
-        )
+        mock_adapter.generate = AsyncMock(return_value=LLMResponse(text="Answer", tokens_input=50, tokens_output=25))
         mock_adapter.provider.return_value = "yandexgpt"
         mock_adapter.model_name.return_value = "yandexgpt-lite"
         mock_adapter.is_foreign = False
@@ -269,6 +262,7 @@ class TestCalibrationIntegration:
     def _create_calibration_dataset(self, tmp_path: Path) -> Path:
         """Create calibration dataset."""
         import json  # noqa: PLC0414
+
         from regulated_eval.schemas import Category, Difficulty  # noqa: PLC0414
 
         records = [
@@ -301,9 +295,7 @@ class TestCalibrationIntegration:
         dataset_path = self._create_calibration_dataset(tmp_path)
 
         mock_adapter = MagicMock(spec=BaseAdapter)
-        mock_adapter.generate = AsyncMock(
-            return_value=LLMResponse(text="Answer", tokens_input=50, tokens_output=25)
-        )
+        mock_adapter.generate = AsyncMock(return_value=LLMResponse(text="Answer", tokens_input=50, tokens_output=25))
         mock_adapter.provider.return_value = "yandexgpt"
         mock_adapter.model_name.return_value = "yandexgpt-lite"
         mock_adapter.is_foreign = False
@@ -318,7 +310,7 @@ class TestCalibrationIntegration:
                 wrong_citation=False,
                 incorrect_refusal=False,
                 annotator_id="expert_01",
-                timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                timestamp=datetime(2024, 1, 1, tzinfo=UTC),
                 hash="a" * 64,
                 prev_hash="b" * 64,
                 source=AnnotationSource.HUMAN,

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from regulated_eval.ab import ABTest
-from regulated_eval.schemas import Category, Difficulty, GoldenRecord
+from regulated_eval.schemas import Category, Difficulty
 
 
 class TestABTestIntegration:
@@ -40,7 +40,7 @@ class TestABTestIntegration:
         assert result.metric_a == pytest.approx(3.0, abs=0.1)
         assert result.metric_b == pytest.approx(4.0, abs=0.1)
         assert result.delta > 0
-        assert result.significant == True
+        assert result.significant
         assert result.winner == "b"
         assert "significant" in result.interpretation.lower()
 
@@ -61,7 +61,7 @@ class TestABTestIntegration:
         assert result.metric_a == pytest.approx(3.5, abs=0.1)
         assert result.metric_b == pytest.approx(3.5, abs=0.1)
         assert result.delta == pytest.approx(0.0, abs=0.1)
-        assert result.significant == False
+        assert not result.significant
         assert result.winner == "none"
 
     def test_ab_test_lower_is_better(self) -> None:
@@ -80,7 +80,7 @@ class TestABTestIntegration:
         )
 
         assert result.delta < 0  # B is lower
-        assert result.significant == True
+        assert result.significant
         assert result.winner == "b"  # B has lower hallucination
 
     def test_ab_test_effect_size(self) -> None:
@@ -224,6 +224,7 @@ class TestCLIIntegration:
         dataset_dir.mkdir()
 
         import json  # noqa: PLC0414
+
         from regulated_eval.schemas import Category, Difficulty  # noqa: PLC0414
 
         records = [

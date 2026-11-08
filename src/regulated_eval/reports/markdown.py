@@ -5,10 +5,8 @@ Covers FR-009, NFR-007.
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 from regulated_eval.schemas import CalibrationResult, MetricsBlock, RunManifest
 
@@ -43,14 +41,14 @@ def generate_markdown_report(
     # Header
     lines.append(f"# Eval Report: {run_id}")
     lines.append("")
-    lines.append(f"**Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
+    lines.append(f"**Generated:** {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}")
     lines.append("")
 
     # Summary
     lines.append("## Summary")
     lines.append("")
-    lines.append(f"| Field | Value |")
-    lines.append(f"|-------|-------|")
+    lines.append("| Field | Value |")
+    lines.append("|-------|-------|")
     lines.append(f"| Run ID | `{run_id}` |")
     lines.append(f"| Dataset | {manifest.dataset_version} (hash: `{manifest.dataset_content_hash[:16]}...`) |")
     lines.append(f"| Model | {manifest.model_provider}/{manifest.model_name} |")
@@ -60,7 +58,7 @@ def generate_markdown_report(
     if manifest.estimated_cost_rub is not None:
         lines.append(f"| Estimated Cost | {manifest.estimated_cost_rub:.4f} RUB |")
     else:
-        lines.append(f"| Estimated Cost | N/A |")
+        lines.append("| Estimated Cost | N/A |")
     lines.append("")
 
     # Metrics
@@ -76,7 +74,9 @@ def generate_markdown_report(
     if metrics.by_category:
         lines.append("### Metrics by Category")
         lines.append("")
-        lines.append("| Category | Hallucination Rate | Citation Accuracy | Refusal Correctness | Factual Consistency |")
+        lines.append(
+            "| Category | Hallucination Rate | Citation Accuracy | Refusal Correctness | Factual Consistency |"
+        )
         lines.append("|----------|-------------------|-------------------|---------------------|---------------------|")
         for cat, cat_metrics in sorted(metrics.by_category.items()):
             hr = cat_metrics.get("hallucination_rate", "N/A")
@@ -96,8 +96,12 @@ def generate_markdown_report(
     if metrics.by_difficulty:
         lines.append("### Metrics by Difficulty")
         lines.append("")
-        lines.append("| Difficulty | Hallucination Rate | Citation Accuracy | Refusal Correctness | Factual Consistency |")
-        lines.append("|------------|-------------------|-------------------|---------------------|---------------------|")
+        lines.append(
+            "| Difficulty | Hallucination Rate | Citation Accuracy | Refusal Correctness | Factual Consistency |"
+        )
+        lines.append(
+            "|------------|-------------------|-------------------|---------------------|---------------------|"
+        )
         for diff, diff_metrics in sorted(metrics.by_difficulty.items()):
             hr = diff_metrics.get("hallucination_rate", "N/A")
             ca = diff_metrics.get("citation_accuracy", "N/A")
@@ -117,7 +121,9 @@ def generate_markdown_report(
         lines.append("## Judge Calibration")
         lines.append("")
         lines.append(f"- **Status:** {calibration.status}")
-        lines.append(f"- **Cohen's Kappa:** {calibration.kappa:.2f} [{int(calibration.ci_level * 100)}% CI {calibration.ci_low:.2f}-{calibration.ci_high:.2f}]")
+        lines.append(
+            f"- **Cohen's Kappa:** {calibration.kappa:.2f} [{int(calibration.ci_level * 100)}% CI {calibration.ci_low:.2f}-{calibration.ci_high:.2f}]"
+        )
         lines.append(f"- **Agreement Rate:** {calibration.agreement:.2%}")
         lines.append(f"- **Threshold:** {calibration.threshold}")
         if calibration.recommendations:

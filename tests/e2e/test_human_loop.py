@@ -3,11 +3,6 @@
 Covers TC-013, TC-014.
 """
 
-import tempfile
-from pathlib import Path
-
-import pytest
-
 from regulated_eval.human_loop.annotation_store import AnnotationStore
 from regulated_eval.schemas import AnnotationSource
 
@@ -55,8 +50,8 @@ class TestHumanInTheLoopE2E:
 
         # Judge scores differ from expert
         judge_scores = {
-            "rec-1": 5,   # Match
-            "rec-2": 4,   # Conflict (diff=2)
+            "rec-1": 5,  # Match
+            "rec-2": 4,  # Conflict (diff=2)
         }
 
         conflicts = store.get_conflicts(judge_scores, threshold=2)
@@ -126,13 +121,19 @@ class TestHumanInTheLoopE2E:
 
         # Tamper with a2's score (bypassing hash)
         from regulated_eval.schemas import Annotation
+
         tampered = Annotation(
-            record_id="rec-2", score=1, hallucination=False,
-            wrong_citation=False, incorrect_refusal=False,
-            annotator_id="expert-1", hash=a2.hash, prev_hash=a1.hash,
+            record_id="rec-2",
+            score=1,
+            hallucination=False,
+            wrong_citation=False,
+            incorrect_refusal=False,
+            annotator_id="expert-1",
+            hash=a2.hash,
+            prev_hash=a1.hash,
             source=AnnotationSource.HUMAN,
         )
-        store._annotations["rec-2"] = tampered
+        store._annotations[tampered.hash] = tampered
 
         # Verify after tamper
         valid_after, errors = store.verify_chain()

@@ -13,13 +13,13 @@ Submodules:
 
 from __future__ import annotations
 
-from regulated_eval.security.injection_filter import InjectionFilter, InjectionCheckResult
+from regulated_eval.security.injection_filter import InjectionCheckResult, InjectionFilter
 from regulated_eval.security.pii_redactor import PIIRedactor, RedactionResult
 from regulated_eval.security.provider_allowlist import (
     FOREIGN_PROVIDERS,
+    RUSSIAN_PROVIDERS,
     ProviderAllowlist,
     ProviderType,
-    RUSSIAN_PROVIDERS,
 )
 from regulated_eval.security.secrets import (
     get_api_key,

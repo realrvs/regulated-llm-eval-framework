@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from regulated_eval.exceptions import ValidationError as EvalValidationError  # noqa: PLC0414
-from regulated_eval.schemas import Category, Difficulty, GoldenRecord  # noqa: PLC0414
+from regulated_eval.schemas import GoldenRecord  # noqa: PLC0414
 
 
 def load_golden_set(
@@ -72,9 +72,7 @@ def load_golden_set(
                 errors.append(f"Line {line_num}: invalid JSON — {e}")
 
     if errors:
-        raise EvalValidationError(
-            f"Validation failed for {len(errors)} record(s):\n" + "\n".join(errors)
-        )
+        raise EvalValidationError(f"Validation failed for {len(errors)} record(s):\n" + "\n".join(errors))
 
     return records
 

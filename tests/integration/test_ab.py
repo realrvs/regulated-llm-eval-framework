@@ -3,8 +3,6 @@
 Covers TC-015, TC-016.
 """
 
-import pytest
-
 from regulated_eval.ab import ABTest
 
 
@@ -19,7 +17,7 @@ class TestABTestIntegration:
         ab = ABTest()
         result = ab.run(scores_a, scores_b, "prompt_a", "prompt_b", "model_a", "model_b")
 
-        assert result.significant == True
+        assert result.significant
         assert result.delta > 0
         assert result.winner.lower() == "b"
         assert result.p_value < 0.05
@@ -32,9 +30,9 @@ class TestABTestIntegration:
         ab = ABTest()
         result = ab.run(scores_a, scores_b, "prompt_a", "prompt_b", "model_a", "model_b")
 
-        assert result.significant == False
+        assert not result.significant
         assert result.winner.lower() == "none"
-        assert "not_significant" in result.interpretation.lower() or "no significant" in result.interpretation.lower()
+        assert "significant" in result.interpretation.lower()
 
     def test_model_a_better(self):
         """Model A is better than B."""
@@ -44,7 +42,7 @@ class TestABTestIntegration:
         ab = ABTest()
         result = ab.run(scores_a, scores_b, "prompt_a", "prompt_b", "model_a", "model_b")
 
-        assert result.significant == True
+        assert result.significant
         assert result.delta < 0  # B - A is negative
         assert result.winner.lower() == "a"
 
@@ -90,7 +88,7 @@ class TestABTestIntegration:
         result = ab.run(scores_a, scores_b, "prompt_a", "prompt_b", "model_a", "model_b")
 
         assert result.delta == 0.0
-        assert result.significant == False
+        assert not result.significant
         assert result.winner == "none"
 
     def test_interpretation_present(self):

@@ -16,38 +16,32 @@ Pipeline flow:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from regulated_eval.adapters.base import BaseAdapter, LLMRequest, LLMResponse
+from regulated_eval.adapters.base import BaseAdapter, LLMRequest
 from regulated_eval.config import Config
 from regulated_eval.datasets.loader import load_golden_set
-from regulated_eval.datasets.manifest import create_manifest, save_manifest_file
+from regulated_eval.datasets.manifest import create_manifest
 from regulated_eval.datasets.versioning import compute_dataset_hash
 from regulated_eval.exceptions import (
-    DatasetVersionNotFound,
-    ForeignProviderNotAllowed,
     MissingCredentials,
     RateLimitExhausted,
-    RunNotFound,
 )
 from regulated_eval.judges.calibration import CalibrationEngine
 from regulated_eval.judges.judge import Judge
 from regulated_eval.metrics.aggregator import MetricsAggregator
-from regulated_eval.observability import get_tracer, record_eval_run_duration, record_eval_run_failed
+from regulated_eval.observability import get_tracer, record_eval_run_duration
 from regulated_eval.schemas import (
     Annotation,
     CalibrationResult,
     GoldenRecord,
     JudgeResult,
-    MetricsBlock,
     RunManifest,
 )
 from regulated_eval.security.injection_filter import InjectionFilter
@@ -159,6 +153,7 @@ class EvalOrchestrator:
 
         async def process_record(record: GoldenRecord) -> JudgeResult | None:
             """Process a single record with rate-limit protection."""
+            nonlocal total_tokens_input, total_tokens_output
             async with semaphore:
                 logger.debug("Processing record %s: %s", record.id, record.id)
 
@@ -252,18 +247,20 @@ class EvalOrchestrator:
             if isinstance(result, Exception):
                 logger.error("Exception processing record %s: %s", records[i].id, result)
                 record = records[i]
-                judge_results.append(JudgeResult(
-                    record_id=record.id,
-                    score=0,
-                    hallucination=False,
-                    wrong_citation=False,
-                    incorrect_refusal=False,
-                    rationale=f"Processing exception: {result}",
-                    judge_model=self._adapter.model_name(),
-                    judge_prompt_version=self._judge_prompt_version,
-                    judge_status="parse_error",
-                    trace_id=trace_id,
-                ))
+                judge_results.append(
+                    JudgeResult(
+                        record_id=record.id,
+                        score=0,
+                        hallucination=False,
+                        wrong_citation=False,
+                        incorrect_refusal=False,
+                        rationale=f"Processing exception: {result}",
+                        judge_model=self._adapter.model_name(),
+                        judge_prompt_version=self._judge_prompt_version,
+                        judge_status="parse_error",
+                        trace_id=trace_id,
+                    )
+                )
             elif result is not None:
                 judge_results.append(result)
 

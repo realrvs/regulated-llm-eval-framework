@@ -5,12 +5,10 @@ Covers TC-007, TC-008.
 
 import json
 
-import pytest
-
 from regulated_eval.adapters.base import LLMRequest, LLMResponse
 from regulated_eval.config import Config
-from regulated_eval.judges.judge import Judge, JUDGE_PROMPT_TEMPLATE
-from regulated_eval.schemas import GoldenRecord, JudgeResult, Category, Difficulty
+from regulated_eval.judges.judge import JUDGE_PROMPT_TEMPLATE, Judge
+from regulated_eval.schemas import Category, Difficulty, GoldenRecord, JudgeResult
 
 
 class MockJudgeAdapter:
@@ -71,7 +69,9 @@ class TestJudgeEvaluate:
     """Test judge evaluate method."""
 
     def test_parse_valid_json(self):
-        adapter = MockJudgeAdapter('{"score": 4, "hallucination": false, "wrong_citation": false, "incorrect_refusal": false, "rationale": "Good answer"}')
+        adapter = MockJudgeAdapter(
+            '{"score": 4, "hallucination": false, "wrong_citation": false, "incorrect_refusal": false, "rationale": "Good answer"}'
+        )
         judge = Judge(adapter=adapter, config=Config())
 
         result = judge.evaluate(_make_record(), "Answer text", trace_id="trace-1")
@@ -86,7 +86,9 @@ class TestJudgeEvaluate:
         assert result.trace_id == "trace-1"
 
     def test_parse_json_with_code_block(self):
-        adapter = MockJudgeAdapter('```json\n{"score": 3, "hallucination": true, "wrong_citation": false, "incorrect_refusal": false, "rationale": "Has hallucinations"}\n```')
+        adapter = MockJudgeAdapter(
+            '```json\n{"score": 3, "hallucination": true, "wrong_citation": false, "incorrect_refusal": false, "rationale": "Has hallucinations"}\n```'
+        )
         judge = Judge(adapter=adapter, config=Config())
 
         result = judge.evaluate(_make_record(), "Bad answer", trace_id="trace-1")
@@ -116,10 +118,17 @@ class TestJudgeEvaluate:
     def test_score_range(self):
         """Score should be between 1 and 5."""
         for score in [1, 2, 3, 4, 5]:
-            adapter = MockJudgeAdapter(json.dumps({
-                "score": score, "hallucination": False, "wrong_citation": False,
-                "incorrect_refusal": False, "rationale": "test"
-            }))
+            adapter = MockJudgeAdapter(
+                json.dumps(
+                    {
+                        "score": score,
+                        "hallucination": False,
+                        "wrong_citation": False,
+                        "incorrect_refusal": False,
+                        "rationale": "test",
+                    }
+                )
+            )
             judge = Judge(adapter=adapter, config=Config())
 
             result = judge.evaluate(_make_record(), "Answer", trace_id="trace-1")

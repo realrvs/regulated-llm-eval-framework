@@ -112,9 +112,7 @@ class ABTest:
         result.delta = result.metric_b - result.metric_a
 
         # Bootstrap CI for delta
-        ci_low, ci_high = self._bootstrap_ci(
-            scores_a, scores_b, higher_is_better
-        )
+        ci_low, ci_high = self._bootstrap_ci(scores_a, scores_b, higher_is_better)
         result.ci_low = ci_low
         result.ci_high = ci_high
 
@@ -214,9 +212,7 @@ class ABTest:
         std_b = np.std(scores_b, ddof=1)
 
         # Pooled standard deviation
-        pooled_std = np.sqrt(
-            ((n_a - 1) * std_a**2 + (n_b - 1) * std_b**2) / (n_a + n_b - 2)
-        )
+        pooled_std = np.sqrt(((n_a - 1) * std_a**2 + (n_b - 1) * std_b**2) / (n_a + n_b - 2))
 
         if pooled_std == 0:
             return 0.0
@@ -244,7 +240,6 @@ class ABTest:
                 f"Consider increasing dataset size."
             )
 
-        direction = "higher" if higher_is_better else "lower"
         winner_name = "A" if result.winner == "a" else "B" if result.winner == "b" else "none"
 
         effect_size = abs(result.cohens_d)

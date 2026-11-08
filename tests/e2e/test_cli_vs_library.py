@@ -3,13 +3,7 @@
 Covers TC-025.
 """
 
-import json
-import tempfile
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
-import typer
+import inspect
 
 from regulated_eval.adapters.base import LLMRequest, LLMResponse
 from regulated_eval.config import Config
@@ -160,19 +154,20 @@ class TestCLIVsLibraryParity:
 
     def test_cli_run_command_signature(self):
         """CLI run command should accept required arguments."""
-        from regulated_eval.cli import app
-        import inspect
 
-        # Get the run command
+        from regulated_eval.cli import app
+
+        # Get the run command (Typer uses callback name when no explicit name)
         run_cmd = None
         for cmd in app.registered_commands:
-            if cmd.name == "run":
+            if cmd.callback and cmd.callback.__name__ == "run":
                 run_cmd = cmd
                 break
 
         assert run_cmd is not None
         # Should have dataset, model, judge_model options
-        params = {p.name for p in run_cmd.params}
+        sig = inspect.signature(run_cmd.callback)
+        params = {p.name for p in sig.parameters.values()}
         assert "dataset" in params
         assert "model" in params
         assert "judge_model" in params
@@ -183,11 +178,12 @@ class TestCLIVsLibraryParity:
 
         calibrate_cmd = None
         for cmd in app.registered_commands:
-            if cmd.name == "calibrate":
+            if cmd.callback and cmd.callback.__name__ == "calibrate":
                 calibrate_cmd = cmd
                 break
 
         assert calibrate_cmd is not None
-        params = {p.name for p in calibrate_cmd.params}
+        sig = inspect.signature(calibrate_cmd.callback)
+        params = {p.name for p in sig.parameters.values()}
         assert "dataset" in params
         assert "judge_model" in params

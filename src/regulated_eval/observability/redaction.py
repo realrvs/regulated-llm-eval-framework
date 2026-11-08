@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from opentelemetry import trace
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanProcessor
 
@@ -211,6 +210,7 @@ class RedactingLogProcessor:
         for pattern, replacement in self.BODY_PATTERNS:
             # Simple case-insensitive replacement
             import re
+
             result = re.sub(
                 rf'("{pattern}"\s*:\s*")[^"]*(")',
                 rf"\g<1>{replacement}\2",

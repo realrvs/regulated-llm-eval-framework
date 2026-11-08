@@ -18,8 +18,6 @@ Commands:
 from __future__ import annotations
 
 import json
-import sys
-import uuid
 from pathlib import Path
 
 import typer
@@ -96,17 +94,14 @@ def main(
 @app.command()
 def dataset_load(
     path: str = typer.Option(..., "--path", "-p", help="Path to JSONL/JSON golden set file."),
-    version: str | None = typer.Option(
-        None, "--version", "-V", help="Explicit version (else from manifest or 0.1.0)."
-    ),
+    version: str | None = typer.Option(None, "--version", "-V", help="Explicit version (else from manifest or 0.1.0)."),
     strict: bool = typer.Option(False, "--strict", help="Pydantic strict mode."),
 ) -> None:
     """Load and validate a golden set (FR-001)."""
     from regulated_eval.datasets.loader import load_golden_set  # noqa: PLC0414
     from regulated_eval.datasets.versioning import (  # noqa: PLC0414
-        create_golden_set_summary,
         compute_dataset_hash,
-        next_version,
+        create_golden_set_summary,
     )
 
     try:
@@ -168,9 +163,7 @@ def dataset_list(
 def run(
     dataset: str = typer.Option(..., "--dataset", "-d", help="Dataset path (file or directory)."),
     model: str = typer.Option(..., "--model", "-m", help="Model: yandexgpt, gigachat, openai_compat."),
-    judge_model: str | None = typer.Option(
-        None, "--judge-model", "-j", help="Judge model (default: same as --model)."
-    ),
+    judge_model: str | None = typer.Option(None, "--judge-model", "-j", help="Judge model (default: same as --model)."),
     parallelism: int = typer.Option(8, "--parallelism", "-P", help="Parallelism (1–32)."),
     seed: int = typer.Option(42, "--seed", help="Random seed for reproducibility."),
     allow_foreign_provider: bool = typer.Option(
@@ -192,7 +185,6 @@ def run(
 ) -> None:
     """Run evaluation on golden set through model + judge (FR-003, FR-004, FR-006)."""
     import asyncio
-    import json
     from pathlib import Path
 
     from regulated_eval.adapters import create_adapter  # noqa: PLC0414
@@ -247,15 +239,19 @@ def run(
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / f"run_{run_id}.json"
         output_path.write_text(
-            json.dumps({
-                "run_id": run_id,
-                "manifest": manifest.model_dump(default=str),
-                "metrics": metrics.model_dump(),
-                "judge_results": [jr.model_dump() for jr in result["judge_results"]],
-                "total_tokens_input": result["total_tokens_input"],
-                "total_tokens_output": result["total_tokens_output"],
-                "estimated_cost_rub": result["estimated_cost_rub"],
-            }, indent=2, ensure_ascii=False),
+            json.dumps(
+                {
+                    "run_id": run_id,
+                    "manifest": manifest.model_dump(default=str),
+                    "metrics": metrics.model_dump(),
+                    "judge_results": [jr.model_dump() for jr in result["judge_results"]],
+                    "total_tokens_input": result["total_tokens_input"],
+                    "total_tokens_output": result["total_tokens_output"],
+                    "estimated_cost_rub": result["estimated_cost_rub"],
+                },
+                indent=2,
+                ensure_ascii=False,
+            ),
             encoding="utf-8",
         )
         typer.echo(f"Run result saved: {output_path}")
@@ -297,19 +293,16 @@ def calibrate(
     allow_foreign_provider: bool = typer.Option(
         False, "--allow-foreign-provider", help="Required for openai_compat (152-FZ opt-in)."
     ),
-    i_understand_152fz: bool = typer.Option(
-        False, "--i-understand-152fz", help="Acknowledge 152-FZ implications."
-    ),
+    i_understand_152fz: bool = typer.Option(False, "--i-understand-152fz", help="Acknowledge 152-FZ implications."),
 ) -> None:
     """Calibrate judge against expert annotations (FR-005)."""
-    import asyncio
 
     from regulated_eval.adapters import create_adapter  # noqa: PLC0414
     from regulated_eval.config import Config  # noqa: PLC0414
     from regulated_eval.exceptions import CalibrationFailed, ForeignProviderNotAllowed  # noqa: PLC0414
     from regulated_eval.human_loop.annotation_store import AnnotationStore  # noqa: PLC0414
-    from regulated_eval.pipeline import EvalOrchestrator  # noqa: PLC0414
     from regulated_eval.observability import init_otel, shutdown_otel  # noqa: PLC0414
+    from regulated_eval.pipeline import EvalOrchestrator  # noqa: PLC0414
 
     init_otel()
 
@@ -340,7 +333,9 @@ def calibrate(
         )
 
         typer.echo(f"Calibration status: {result.status}")
-        typer.echo(f"Cohen's kappa: {result.kappa:.2f} [{int(result.ci_level * 100)}% CI {result.ci_low:.2f}-{result.ci_high:.2f}]")
+        typer.echo(
+            f"Cohen's kappa: {result.kappa:.2f} [{int(result.ci_level * 100)}% CI {result.ci_low:.2f}-{result.ci_high:.2f}]"
+        )
         typer.echo(f"Agreement rate: {result.agreement:.2%}")
         typer.echo(f"Threshold: {result.threshold}")
 
@@ -372,13 +367,10 @@ def calibrate(
 def report(
     run_id: str = typer.Option(..., "--run", "-r", help="Run ID for report generation."),
     format: str = typer.Option("md", "--format", "-f", help="Report format: md, html, both."),
-    compare: str | None = typer.Option(
-        None, "--compare", "-c", help="Run ID of previous run for delta comparison."
-    ),
+    compare: str | None = typer.Option(None, "--compare", "-c", help="Run ID of previous run for delta comparison."),
     output_dir: str = typer.Option("reports/", "--output-dir", "-o", help="Output directory."),
 ) -> None:
     """Generate Markdown/HTML report (FR-009)."""
-    import json
     from pathlib import Path
 
     from regulated_eval.reports import generate_html_report, generate_markdown_report  # noqa: PLC0414
@@ -435,14 +427,11 @@ def ab(
     allow_foreign_provider: bool = typer.Option(
         False, "--allow-foreign-provider", help="Required for openai_compat (152-FZ opt-in)."
     ),
-    i_understand_152fz: bool = typer.Option(
-        False, "--i-understand-152fz", help="Acknowledge 152-FZ implications."
-    ),
+    i_understand_152fz: bool = typer.Option(False, "--i-understand-152fz", help="Acknowledge 152-FZ implications."),
     output_dir: str = typer.Option("reports/", "--output-dir", "-o", help="Output directory."),
 ) -> None:
     """Run A/B test between two models or prompts (FR-008)."""
     import asyncio
-    import json
     from pathlib import Path
 
     from regulated_eval.ab import ABTest  # noqa: PLC0414
@@ -478,7 +467,11 @@ def ab(
                 jr = judge_a.evaluate(record, response.text, trace_id="ab-test")
                 scores_a.append(float(jr.score))
 
-        typer.echo(f"  Model A: {len(scores_a)} scores, mean={sum(scores_a)/len(scores_a):.2f}" if scores_a else "  Model A: no scores")
+        typer.echo(
+            f"  Model A: {len(scores_a)} scores, mean={sum(scores_a) / len(scores_a):.2f}"
+            if scores_a
+            else "  Model A: no scores"
+        )
 
         # Run model B
         typer.echo(f"\nRunning Model B: {model_b}...")
@@ -493,7 +486,11 @@ def ab(
                 jr = judge_b.evaluate(record, response.text, trace_id="ab-test")
                 scores_b.append(float(jr.score))
 
-        typer.echo(f"  Model B: {len(scores_b)} scores, mean={sum(scores_b)/len(scores_b):.2f}" if scores_b else "  Model B: no scores")
+        typer.echo(
+            f"  Model B: {len(scores_b)} scores, mean={sum(scores_b) / len(scores_b):.2f}"
+            if scores_b
+            else "  Model B: no scores"
+        )
 
         # Run A/B test
         ab_test = ABTest()
@@ -524,20 +521,24 @@ def ab(
         output_path = Path(output_dir) / f"ab_{model_a}_vs_{model_b}.json"
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
-            json.dumps({
-                "model_a": model_a,
-                "model_b": model_b,
-                "metric_a": result.metric_a,
-                "metric_b": result.metric_b,
-                "delta": result.delta,
-                "p_value": result.p_value,
-                "ci_low": result.ci_low,
-                "ci_high": result.ci_high,
-                "cohens_d": result.cohens_d,
-                "significant": result.significant,
-                "winner": result.winner,
-                "interpretation": result.interpretation,
-            }, indent=2, ensure_ascii=False),
+            json.dumps(
+                {
+                    "model_a": model_a,
+                    "model_b": model_b,
+                    "metric_a": result.metric_a,
+                    "metric_b": result.metric_b,
+                    "delta": result.delta,
+                    "p_value": result.p_value,
+                    "ci_low": result.ci_low,
+                    "ci_high": result.ci_high,
+                    "cohens_d": result.cohens_d,
+                    "significant": result.significant,
+                    "winner": result.winner,
+                    "interpretation": result.interpretation,
+                },
+                indent=2,
+                ensure_ascii=False,
+            ),
             encoding="utf-8",
         )
         typer.echo(f"\nResult saved: {output_path}")
@@ -567,7 +568,6 @@ def conflicts_resolve(
     annotator_id: str = typer.Option("", "--annotator", help="Expert who resolves conflicts."),
 ) -> None:
     """Resolve judge vs expert conflicts (FR-007)."""
-    import json
     from pathlib import Path
 
     from regulated_eval.human_loop.annotation_store import AnnotationStore  # noqa: PLC0414
@@ -587,7 +587,7 @@ def conflicts_resolve(
 
     # Load annotations
     store = AnnotationStore(annotations)
-    annotations_list = store.load_all_annotations()
+    store.load_all_annotations()
 
     # Find conflicts
     resolver = ConflictResolver(
@@ -602,7 +602,9 @@ def conflicts_resolve(
 
     typer.echo(f"Found {len(conflicts)} conflicts:")
     for i, conflict in enumerate(conflicts, 1):
-        typer.echo(f"  {i}. {conflict['record_id']}: judge={conflict['judge_score']}, expert={conflict['expert_score']}, diff={conflict['difference']}")
+        typer.echo(
+            f"  {i}. {conflict['record_id']}: judge={conflict['judge_score']}, expert={conflict['expert_score']}, diff={conflict['difference']}"
+        )
 
     # Resolve conflicts
     resolution_map = {
@@ -637,20 +639,16 @@ def run_replay(
     allow_foreign_provider: bool = typer.Option(
         False, "--allow-foreign-provider", help="Required for openai_compat (152-FZ opt-in)."
     ),
-    i_understand_152fz: bool = typer.Option(
-        False, "--i-understand-152fz", help="Acknowledge 152-FZ implications."
-    ),
+    i_understand_152fz: bool = typer.Option(False, "--i-understand-152fz", help="Acknowledge 152-FZ implications."),
 ) -> None:
     """Replay a previous run for reproducibility (FR-012)."""
-    import asyncio
-    import json
     from pathlib import Path
 
     from regulated_eval.adapters import create_adapter  # noqa: PLC0414
     from regulated_eval.config import Config  # noqa: PLC0414
     from regulated_eval.datasets.manifest import load_manifest_file  # noqa: PLC0414
-    from regulated_eval.pipeline import EvalOrchestrator, ReplayOrchestrator  # noqa: PLC0414
     from regulated_eval.observability import init_otel, shutdown_otel  # noqa: PLC0414
+    from regulated_eval.pipeline import EvalOrchestrator, ReplayOrchestrator  # noqa: PLC0414
 
     init_otel()
 

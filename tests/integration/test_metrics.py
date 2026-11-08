@@ -6,15 +6,21 @@ Covers TC-011, TC-012.
 import pytest
 
 from regulated_eval.metrics.aggregator import MetricsAggregator
-from regulated_eval.schemas import JudgeResult, MetricsBlock, Category, Difficulty
+from regulated_eval.schemas import JudgeResult, MetricsBlock
 
 
 class TestMetricsAggregator:
     """Test metrics aggregation."""
 
-    def _make_result(self, record_id: str, score: int, hallucination: bool = False,
-                     wrong_citation: bool = False, incorrect_refusal: bool = False,
-                     status: str = "ok") -> JudgeResult:
+    def _make_result(
+        self,
+        record_id: str,
+        score: int,
+        hallucination: bool = False,
+        wrong_citation: bool = False,
+        incorrect_refusal: bool = False,
+        status: str = "ok",
+    ) -> JudgeResult:
         return JudgeResult(
             record_id=record_id,
             score=score,
@@ -41,10 +47,7 @@ class TestMetricsAggregator:
 
     def test_all_ok(self):
         """All good results > perfect metrics."""
-        results = [
-            self._make_result(f"rec-{i}", 4, hallucination=False, wrong_citation=False)
-            for i in range(10)
-        ]
+        results = [self._make_result(f"rec-{i}", 4, hallucination=False, wrong_citation=False) for i in range(10)]
 
         agg = MetricsAggregator()
         metrics = agg.aggregate(results)
@@ -94,7 +97,7 @@ class TestMetricsAggregator:
 
         # by_category may be empty if no category data matches
         if "tax" in metrics.by_category:
-            assert metrics.by_category["tax"].hallucination_rate == 0.5
+            assert metrics.by_category["tax"]["hallucination_rate"] == 0.5
 
     def test_by_difficulty(self):
         """Metrics should be grouped by difficulty."""

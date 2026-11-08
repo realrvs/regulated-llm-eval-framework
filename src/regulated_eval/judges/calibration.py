@@ -9,17 +9,15 @@ by computing Cohen's kappa with bootstrap confidence intervals.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import numpy as np
-from sklearn.metrics import cohen_kappa_score, accuracy_score
+from sklearn.metrics import accuracy_score, cohen_kappa_score
 
 from regulated_eval.config import Config
 from regulated_eval.exceptions import CalibrationFailed
 from regulated_eval.schemas import (
     Annotation,
     CalibrationResult,
-    GoldenRecord,
     JudgeResult,
 )
 
@@ -84,9 +82,7 @@ class CalibrationEngine:
                 kappa = 0.0
 
         # Compute bootstrap confidence interval
-        ci_low, ci_high = self._bootstrap_ci(
-            judge_scores, human_scores, n_bootstrap, ci_level, random_seed
-        )
+        ci_low, ci_high = self._bootstrap_ci(judge_scores, human_scores, n_bootstrap, ci_level, random_seed)
 
         # Compute agreement rate
         agreement = accuracy_score(human_scores, judge_scores)
@@ -138,11 +134,13 @@ class CalibrationEngine:
         for jr in judge_results:
             if jr.record_id in annotation_map:
                 ann = annotation_map[jr.record_id]
-                matched.append({
-                    "judge_score": jr.score,
-                    "human_score": ann.score,
-                    "record_id": jr.record_id,
-                })
+                matched.append(
+                    {
+                        "judge_score": jr.score,
+                        "human_score": ann.score,
+                        "record_id": jr.record_id,
+                    }
+                )
 
         return matched
 
@@ -197,16 +195,20 @@ class CalibrationEngine:
         recommendations = []
 
         if kappa < 0.4:
-            recommendations.extend([
-                "Add few-shot examples to judge prompt",
-                "Use chain-of-thought reasoning in judge prompt",
-                "Split evaluation into sub-tasks (accuracy, citation, hallucination)",
-            ])
+            recommendations.extend(
+                [
+                    "Add few-shot examples to judge prompt",
+                    "Use chain-of-thought reasoning in judge prompt",
+                    "Split evaluation into sub-tasks (accuracy, citation, hallucination)",
+                ]
+            )
         elif kappa < threshold:
-            recommendations.extend([
-                "Add more few-shot examples to judge prompt",
-                "Refine judge prompt with clearer criteria",
-                "Consider using a stronger judge model",
-            ])
+            recommendations.extend(
+                [
+                    "Add more few-shot examples to judge prompt",
+                    "Refine judge prompt with clearer criteria",
+                    "Consider using a stronger judge model",
+                ]
+            )
 
         return recommendations

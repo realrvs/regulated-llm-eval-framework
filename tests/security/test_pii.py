@@ -5,8 +5,6 @@ Covers T-1104, FR-010, NFR-SEC-002, TM-02, TM-11, ADR-001.
 
 from __future__ import annotations
 
-import pytest
-
 from regulated_eval.security.pii_redactor import PIIRedactor
 
 
