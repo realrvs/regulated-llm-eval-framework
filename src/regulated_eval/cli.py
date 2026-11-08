@@ -47,7 +47,7 @@ def _version_callback(value: bool) -> None:
 
 
 @app.callback()
-def main(
+def cli_main(
     ctx: typer.Context,
     version: bool = typer.Option(
         False,
@@ -603,7 +603,10 @@ def conflicts_resolve(
     typer.echo(f"Found {len(conflicts)} conflicts:")
     for i, conflict in enumerate(conflicts, 1):
         typer.echo(
-            f"  {i}. {conflict['record_id']}: judge={conflict['judge_score']}, expert={conflict['expert_score']}, diff={conflict['difference']}"
+            f"  {i}. {conflict['record_id']}: "
+            f"judge={conflict['judge_score']}, "
+            f"expert={conflict['expert_score']}, "
+            f"diff={conflict['difference']}"
         )
 
     # Resolve conflicts
