@@ -2,22 +2,35 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+| Version | Supported |
+|---------|-----------|
+| 1.0.x   | ✅        |
 
 ## Reporting a Vulnerability
 
-To report a security vulnerability, please:
+Please report security vulnerabilities privately:
 
-1. **Do NOT open a public issue.**
-2. Email: [security@regulated-eval.example](mailto:security@regulated-eval.example)
-3. Include: description, reproduction steps, impact assessment.
+1. **Email:** [SECURITY_CONTACT] (replace with actual contact)
+2. **GitHub:** Use [Security Advisories](../../security/advisories) tab
 
-We will respond within 48 hours and coordinate a fix.
+## What to Include
 
-## 152-FZ Compliance
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
 
-This project processes PII (personal data) under Russian Federal Law 152-FZ.
-All PII is redacted before being sent to any LLM provider.
-See `docs/152fz.md` for details.
+## Response Timeline
+
+- **Acknowledgment:** within 48 hours
+- **Fix target:** within 2 weeks for critical, 30 days for medium/low
+- **Disclosure:** coordinated with reporter
+
+## Security Features
+
+- PII redaction (Presidio + regex for RU)
+- Provider allowlist (Russian providers by default)
+- Foreign provider double opt-in (152-FZ compliance)
+- OTel redaction middleware
+- Audit logging without PII values
+- Hash-chain annotations (tamper detection)

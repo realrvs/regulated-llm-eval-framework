@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "regulated-eval"
-version = "0.1.0"
+version = "1.0.0"
 description = "Regulated LLM Eval Framework — evaluation for LLMs in regulated domains (tax, accounting, legal) with 152-FZ compliance"
 readme = "README.md"
 license = "MIT"
