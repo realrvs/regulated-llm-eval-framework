@@ -71,7 +71,7 @@ class GigaChatAdapter(BaseAdapter):
         """Get or create httpx client."""
         if self._client is None:
             self._client = httpx.AsyncClient(
-                timeout=httpx.Timeout(30.0),
+                timeout=30.0,
                 limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
             )
         return self._client

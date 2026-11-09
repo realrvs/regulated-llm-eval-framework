@@ -81,7 +81,7 @@ class OpenAICompatibleAdapter(BaseAdapter):
         if self._client is None:
             self._client = httpx.AsyncClient(
                 base_url=self._base_url,
-                timeout=httpx.Timeout(30.0),
+                timeout=30.0,
                 limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
             )
         return self._client

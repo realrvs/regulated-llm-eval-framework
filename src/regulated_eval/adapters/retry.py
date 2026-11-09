@@ -16,7 +16,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from regulated_eval.exceptions import RateLimitExhausted
+from regulated_eval.exceptions import RateLimitExhausted  # noqa: F401
+
+__all__ = ["RateLimitError", "RateLimitExhausted", "check_rate_limit", "retry_with_backoff", "get_retry_decorator"]
 
 logger = logging.getLogger(__name__)
 

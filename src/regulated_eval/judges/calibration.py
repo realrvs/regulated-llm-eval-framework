@@ -70,8 +70,8 @@ class CalibrationEngine:
         if not matched:
             raise CalibrationFailed("No matched judge results and annotations for calibration")
 
-        judge_scores = [m["judge_score"] for m in matched]
-        human_scores = [m["human_score"] for m in matched]
+        judge_scores: list[int] = [int(m["judge_score"]) for m in matched]
+        human_scores: list[int] = [int(m["human_score"]) for m in matched]
 
         # Compute Cohen's kappa
         # If all scores are the same, kappa is 1.0 (perfect agreement)
@@ -130,7 +130,7 @@ class CalibrationEngine:
     ) -> list[dict[str, int | str]]:
         """Match judge results with annotations by record_id."""
         annotation_map = {a.record_id: a for a in annotations}
-        matched = []
+        matched: list[dict[str, int | str]] = []
 
         for jr in judge_results:
             if jr.record_id in annotation_map:
