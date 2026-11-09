@@ -212,10 +212,10 @@ mypy src/regulated_eval
 - [x] OpenSpec pipeline (proposal → specs → design → threat-model → adr → api-contract → test-specs → tasks → apply)
 - [x] MVP implementation (Foundation, Datasets, Adapters, Security, Judges, Metrics, Pipeline, Reports)
 - [x] Phase 6-10: Human-loop, A/B, Reports, Observability, Pipeline
-- [ ] Phase 11: Tests (T-1101..T-1114)
-- [ ] Phase 12: CI (T-1201..T-1205)
-- [ ] Phase 13: Docs (T-1301..T-1305)
-- [ ] Phase 14: Apply (T-1401..T-1403)
+- [x] Phase 11: Tests (T-1101..T-1114) — 183 теста, все passing
+- [x] Phase 12: CI (T-1201..T-1205) — lint, test, matrix, docs-check
+- [x] Phase 13: Docs (T-1301..T-1305) — PRD, methodology, case_study, 152fz
+- [x] Phase 14: Apply (T-1401..T-1403) — feature flags, migrations, observability
 - [x] v1.0.0 release (TestPyPI)
 
 Полный план — в [`tasks/tasks.md`](tasks/tasks.md).
