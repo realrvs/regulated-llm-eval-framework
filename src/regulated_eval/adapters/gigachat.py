@@ -70,10 +70,7 @@ class GigaChatAdapter(BaseAdapter):
     def _get_client(self) -> httpx.AsyncClient:
         """Get or create httpx client."""
         if self._client is None:
-            self._client = httpx.AsyncClient(
-                timeout=30.0,
-                limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
-            )
+            self._client = httpx.AsyncClient(timeout=30.0)
         return self._client
 
     async def _get_access_token(self) -> str:

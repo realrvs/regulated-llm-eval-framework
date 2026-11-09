@@ -160,4 +160,4 @@ def load_manifest(
         return None
 
     with manifest_path.open("r", encoding="utf-8") as f:
-        return json.load(f)  # type: ignore[return-value,no-any-return]
+        return json.load(f)  # type: ignore[no-any-return]
