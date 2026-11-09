@@ -40,7 +40,7 @@ def get_retry_decorator(
     max_retries: int = 5,
     base_delay_ms: int = 1000,
     max_delay_ms: int = 30000,
-) -> Callable:
+) -> Callable[..., Any]:
     """Create a tenacity retry decorator for LLM calls.
 
     Args:
@@ -73,7 +73,7 @@ def get_retry_decorator(
 
 
 async def retry_with_backoff(
-    func: Callable,
+    func: Callable[..., Any],
     *args: Any,
     max_retries: int = 5,
     base_delay_ms: int = 1000,

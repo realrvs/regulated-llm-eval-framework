@@ -15,7 +15,7 @@ import logging
 from dataclasses import dataclass
 
 import numpy as np
-from scipy import stats
+from scipy import stats  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 

@@ -262,7 +262,7 @@ class EvalOrchestrator:
                     )
                 )
             elif result is not None:
-                judge_results.append(result)
+                judge_results.append(result)  # type: ignore[arg-type]
 
         # Step 5: Compute metrics
         categories = {r.id: r.category.value for r in records}

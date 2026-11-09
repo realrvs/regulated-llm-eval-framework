@@ -17,6 +17,7 @@ from regulated_eval.adapters.gigachat import GigaChatAdapter
 from regulated_eval.adapters.openai_compat import OpenAICompatibleAdapter
 from regulated_eval.adapters.retry import RateLimitError, RateLimitExhausted, check_rate_limit
 from regulated_eval.adapters.yandexgpt import YandexGPTAdapter
+from regulated_eval.config import Config
 
 __all__ = [
     "BaseAdapter",
@@ -34,7 +35,7 @@ __all__ = [
 def create_adapter(
     provider: str,
     model: str = "",
-    config=None,
+    config: Config | None = None,
     base_url: str | None = None,
 ) -> BaseAdapter:
     """Create an adapter by provider name.

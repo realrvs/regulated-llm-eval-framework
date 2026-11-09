@@ -13,7 +13,7 @@ import logging
 from typing import Any
 
 from opentelemetry.sdk.trace import ReadableSpan
-from opentelemetry.sdk.trace.export import SpanProcessor
+from opentelemetry.sdk.trace.export import SpanProcessor  # type: ignore[attr-defined]
 
 logger = logging.getLogger(__name__)
 

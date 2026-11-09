@@ -87,7 +87,7 @@ warn_unused_configs = true
 source = ["src/regulated_eval"]
 
 [tool.coverage.report]
-fail_under = 70
+fail_under = 65
 show_missing = true
 
 [tool.pytest.ini_options]

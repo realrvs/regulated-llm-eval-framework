@@ -84,7 +84,7 @@ def generate_markdown_report(
             rc = cat_metrics.get("refusal_correctness", "N/A")
             fc = cat_metrics.get("factual_consistency", "N/A")
 
-            def _fmt(v: float) -> str:
+            def _fmt(v: float | str) -> str:
                 if isinstance(v, float):
                     return f"{v:.2%}"
                 return str(v)
@@ -108,7 +108,7 @@ def generate_markdown_report(
             rc = diff_metrics.get("refusal_correctness", "N/A")
             fc = diff_metrics.get("factual_consistency", "N/A")
 
-            def _fmt(v: float) -> str:
+            def _fmt(v: float | str) -> str:
                 if isinstance(v, float):
                     return f"{v:.2%}"
                 return str(v)

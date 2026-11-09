@@ -9,6 +9,7 @@ import asyncio
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import Any
 
 from regulated_eval.observability import get_tracer, record_llm_request_duration
 
@@ -22,7 +23,7 @@ class LLMRequest:
     temperature: float = 0.0
     max_tokens: int = 1024
     stop_sequences: list[str] = field(default_factory=list)
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

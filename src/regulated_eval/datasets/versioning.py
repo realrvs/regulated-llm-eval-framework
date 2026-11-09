@@ -45,7 +45,7 @@ def parse_version(version_str: str) -> tuple[int, int, int]:
         parts = version_str.strip().split(".")
         if len(parts) != 3:
             raise ValueError(f"Invalid semver: {version_str}")
-        return tuple(int(p) for p in parts)
+        return (int(parts[0]), int(parts[1]), int(parts[2]))
     except (ValueError, AttributeError) as e:
         raise ValueError(f"Invalid semver '{version_str}': {e}")
 
@@ -160,4 +160,4 @@ def load_manifest(
         return None
 
     with manifest_path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        return json.load(f)  # type: ignore[return-value]

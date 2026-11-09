@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from regulated_eval.schemas import RunManifest
+from regulated_eval.schemas import AckSource, RunManifest
 
 
 def create_manifest(
@@ -66,7 +66,7 @@ def create_manifest(
         estimated_cost_rub=estimated_cost_rub,
         trace_id=trace_id,
         prev_hash=prev_hash,
-        ack_source=ack_source,
+        ack_source=AckSource(ack_source),
     )
     # Compute and set hash (hash field allows empty string for intermediate construction)
     manifest.hash = manifest.compute_hash()
@@ -93,7 +93,7 @@ def save_manifest_file(
     manifest_path = output_dir / filename
 
     with manifest_path.open("w", encoding="utf-8") as f:
-        json.dump(manifest.model_dump(default=str), f, indent=2, ensure_ascii=False, default=str)
+        json.dump(manifest.model_dump(mode="json"), f, indent=2, ensure_ascii=False)
 
     return manifest_path
 

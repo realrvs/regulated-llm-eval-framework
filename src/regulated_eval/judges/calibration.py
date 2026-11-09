@@ -9,9 +9,10 @@ by computing Cohen's kappa with bootstrap confidence intervals.
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 import numpy as np
-from sklearn.metrics import accuracy_score, cohen_kappa_score
+from sklearn.metrics import accuracy_score, cohen_kappa_score  # type: ignore[import-untyped]
 
 from regulated_eval.config import Config
 from regulated_eval.exceptions import CalibrationFailed
@@ -88,7 +89,7 @@ class CalibrationEngine:
         agreement = accuracy_score(human_scores, judge_scores)
 
         # Determine status
-        status = "PASS" if kappa >= threshold else "FAIL"
+        status: Literal["PASS", "FAIL"] = "PASS" if kappa >= threshold else "FAIL"
 
         # Generate recommendations
         recommendations = self._generate_recommendations(kappa, threshold, status)
@@ -126,7 +127,7 @@ class CalibrationEngine:
         self,
         judge_results: list[JudgeResult],
         annotations: list[Annotation],
-    ) -> list[dict[str, int]]:
+    ) -> list[dict[str, int | str]]:
         """Match judge results with annotations by record_id."""
         annotation_map = {a.record_id: a for a in annotations}
         matched = []

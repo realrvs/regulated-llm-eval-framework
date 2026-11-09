@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 from regulated_eval.schemas import JudgeResult, MetricsBlock
 

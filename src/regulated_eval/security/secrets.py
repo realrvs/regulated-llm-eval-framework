@@ -96,7 +96,7 @@ def sanitize_for_logging(data: dict[str, Any]) -> dict[str, Any]:
         Sanitized dict with masked secrets.
     """
     secret_keys = {"api_key", "apikey", "secret", "token", "authorization"}
-    sanitized = {}
+    sanitized: dict[str, Any] = {}
 
     for key, value in data.items():
         lower_key = key.lower()

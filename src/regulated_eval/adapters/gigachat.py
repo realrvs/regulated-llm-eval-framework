@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 
-import httpx
+import httpx  # type: ignore[import-untyped]
 
 from regulated_eval.adapters.base import BaseAdapter, LLMRequest, LLMResponse
 from regulated_eval.adapters.retry import (

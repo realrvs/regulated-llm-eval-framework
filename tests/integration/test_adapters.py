@@ -97,7 +97,7 @@ class TestYandexGPTAdapterIntegration:
         mock_session.post = AsyncMock(return_value=mock_response)
         mock_session.aclose = AsyncMock()
 
-        with patch("regulated_eval.adapters.yandexgpt.httpx.AsyncClient") as mock_client_cls:
+        with patch("httpx.AsyncClient", create=True) as mock_client_cls:
             mock_client_cls.return_value = mock_session
 
             request = LLMRequest(
@@ -132,7 +132,7 @@ class TestYandexGPTAdapterIntegration:
         mock_session.post = AsyncMock(return_value=mock_response)
         mock_session.aclose = AsyncMock()
 
-        with patch("regulated_eval.adapters.yandexgpt.httpx.AsyncClient") as mock_client_cls:
+        with patch("httpx.AsyncClient", create=True) as mock_client_cls:
             mock_client_cls.return_value = mock_session
 
             request = LLMRequest(
@@ -191,7 +191,7 @@ class TestGigaChatAdapterIntegration:
         mock_session.post = AsyncMock(side_effect=[mock_token_response, mock_chat_response])
         mock_session.aclose = AsyncMock()
 
-        with patch("regulated_eval.adapters.gigachat.httpx.AsyncClient") as mock_client_cls:
+        with patch("httpx.AsyncClient", create=True) as mock_client_cls:
             mock_client_cls.return_value = mock_session
 
             request = LLMRequest(
@@ -239,7 +239,7 @@ class TestOpenAICompatibleAdapterIntegration:
         mock_session.post = AsyncMock(return_value=mock_response)
         mock_session.aclose = AsyncMock()
 
-        with patch("regulated_eval.adapters.openai_compat.httpx.AsyncClient") as mock_client_cls:
+        with patch("httpx.AsyncClient", create=True) as mock_client_cls:
             mock_client_cls.return_value = mock_session
 
             request = LLMRequest(

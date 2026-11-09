@@ -102,7 +102,7 @@ def init_otel(service_name: str = "regulated-eval") -> dict[str, Any]:
         sampling_ratio = _get_sampling_ratio()
         tracer_provider = TracerProvider(
             resource=resource,
-            sampler=trace.sampling.TraceIdRatioBased(sampling_ratio),
+            sampler=trace.sampling.TraceIdRatioBased(sampling_ratio),  # type: ignore[attr-defined]
         )
 
         # Add OTLP exporter
