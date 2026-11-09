@@ -11,7 +11,7 @@ Library API (FR-014):
 - verify_annotations: Verify annotation chain
 """
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 from regulated_eval.adapters import (
     BaseAdapter,

@@ -5,6 +5,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PyPI version](https://img.shields.io/pypi/v/regulated-eval.svg)](https://pypi.org/project/regulated-eval/)
 [![OpenSpec v1.x](https://img.shields.io/badge/OpenSpec-v1.x-green.svg)](docs/PRD.md)
 
 ---
@@ -17,7 +18,19 @@
 pip install regulated-eval
 ```
 
-### 2. API-ключ провайдера
+> **Требования:** Python 3.11+
+
+### 2. Опциональные зависимости
+
+```bash
+# PII-redaction (Presidio)
+pip install "regulated-eval[presidio]"
+
+# Streamlit UI для экспертов
+pip install "regulated-eval[streamlit]"
+```
+
+### 3. API-ключ провайдера
 
 ```bash
 # YandexGPT (российский, соответствует 152-ФЗ)
@@ -27,7 +40,7 @@ export YANDEXGPT_API_KEY="your-key"
 export GIGACHAT_API_KEY="your-key"
 ```
 
-### 3. Первый прогон
+### 4. Первый прогон
 
 ```bash
 # Загрузка sample golden set (20 вопросов по УСН/НДС/взносам)
@@ -43,7 +56,7 @@ regulated-eval run \
 # Отчёт: reports/<run_id>.md
 ```
 
-### 4. Калибровка (обязательно перед публикацией отчёта)
+### 5. Калибровка (обязательно перед публикацией отчёта)
 
 ```bash
 regulated-eval calibrate \
@@ -53,7 +66,7 @@ regulated-eval calibrate \
 # → PASS (kappa ≥ 0.6) или FAIL + рекомендации
 ```
 
-### 5. A/B-сравнение моделей
+### 6. A/B-сравнение моделей
 
 ```bash
 regulated-eval ab \
@@ -203,7 +216,7 @@ mypy src/regulated_eval
 - [ ] Phase 12: CI (T-1201..T-1205)
 - [ ] Phase 13: Docs (T-1301..T-1305)
 - [ ] Phase 14: Apply (T-1401..T-1403)
-- [ ] v1.0.0 release (PyPI)
+- [x] v1.0.0 release (TestPyPI)
 
 Полный план — в [`tasks/tasks.md`](tasks/tasks.md).
 
