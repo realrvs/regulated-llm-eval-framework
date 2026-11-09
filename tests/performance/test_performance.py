@@ -8,6 +8,7 @@ import time
 from regulated_eval.adapters.base import BaseAdapter, LLMRequest, LLMResponse
 from regulated_eval.datasets.loader import load_golden_set
 from regulated_eval.metrics.aggregator import MetricsAggregator
+from regulated_eval.schemas import JudgeResult
 from regulated_eval.security.injection_filter import InjectionFilter
 from regulated_eval.security.pii_redactor import PIIRedactor
 
@@ -76,9 +77,7 @@ class TestMetricsAggregationPerformance:
 
     def _make_result(
         self, record_id: str, score: int, hallucination: bool = False, wrong_citation: bool = False
-    ) -> "JudgeResult":
-        from regulated_eval.schemas import JudgeResult
-
+    ) -> JudgeResult:
         return JudgeResult(
             record_id=record_id,
             score=score,

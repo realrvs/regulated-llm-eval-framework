@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from regulated_eval.schemas import (
     AckSource,
@@ -80,7 +81,7 @@ class TestGoldenRecord:
 
     def test_empty_id_raises(self) -> None:
         """Test that empty ID raises validation error."""
-        with pytest.raises(Exception):  # Pydantic ValidationError
+        with pytest.raises(ValidationError):  # Pydantic ValidationError
             GoldenRecord(
                 id="",
                 question="Test",

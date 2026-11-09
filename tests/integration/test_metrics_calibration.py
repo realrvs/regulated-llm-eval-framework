@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from regulated_eval.exceptions import CalibrationFailed
 from regulated_eval.judges.calibration import CalibrationEngine
 from regulated_eval.metrics.aggregator import MetricsAggregator
 from regulated_eval.schemas import (
@@ -353,7 +354,7 @@ class TestCalibrationEngineIntegration:
             ),
         ]
 
-        with pytest.raises(Exception):  # CalibrationFailed
+        with pytest.raises(CalibrationFailed):
             engine.compute_kappa(judge_results, annotations)
 
     def test_calibration_ci_bounds(self) -> None:
@@ -407,7 +408,7 @@ class TestCalibrationEngineIntegration:
             for i in range(5)
         ]
 
-        with pytest.raises(Exception):
+        with pytest.raises(CalibrationFailed):
             engine.compute_kappa(
                 judge_results,
                 annotations,
