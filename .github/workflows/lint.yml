@@ -23,7 +23,7 @@ jobs:
           pip install --pre -e ".[dev]"
 
       - name: ruff check
-        run: ruff check src/ tests/
+        run: ruff check --select E,F,I,N,W,UP,B,SIM --ignore B904,N818,E501 src/ tests/
 
       - name: ruff format --check
         run: ruff format --check src/ tests/

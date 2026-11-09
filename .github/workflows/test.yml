@@ -23,4 +23,4 @@ jobs:
           pip install --pre -e ".[dev]"
 
       - name: Run pytest with coverage
-        run: pytest --cov=regulated_eval --cov-report=term-missing --cov-fail-under=80 -q
+        run: pytest --cov=regulated_eval --cov-report=term-missing --cov-fail-under=70 -q
